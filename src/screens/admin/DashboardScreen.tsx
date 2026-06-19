@@ -2,7 +2,7 @@
 // SmartPOS - Dashboard Screen
 // Based on SRS Section 3.5 (FR-DAS) and Section 8
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, {useEffect, useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,11 @@ import {
   StatusBar,
   RefreshControl,
 } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AdminStackParamList } from '../../navigation/AppNavigator';
-import { getTodaySummary, getWeeklySales } from '../../database/transactionDAO';
-import { getAllSettings } from '../../database/settingsDAO';
-import { AppSettings } from '../../types';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {AdminStackParamList} from '../../navigation/AppNavigator';
+import {getTodaySummary, getWeeklySales} from '../../database/transactionDAO';
+import {getAllSettings} from '../../database/settingsDAO';
+import {AppSettings} from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,17 +55,17 @@ const COLORS = {
 };
 
 const QUICK_ACCESS = [
-  { label: 'Products', icon: '📦', screen: 'ProductList' },
-  { label: 'Categories', icon: '🗂️', screen: 'CategoryManager' },
-  { label: 'New Sale', icon: '🛒', screen: 'Sales' },
-  { label: 'Purchase Orders', icon: '🚚', screen: 'PurchaseOrders' },
-  { label: 'Reports', icon: '📊', screen: 'Reports' },
-  { label: 'Settings', icon: '⚙️', screen: 'Settings' },
+  {label: 'Products', icon: '📦', screen: 'ProductList'},
+  {label: 'Categories', icon: '🗂️', screen: 'CategoryManager'},
+  {label: 'New Sale', icon: '🛒', screen: 'Sales'},
+  {label: 'Purchase Orders', icon: '🚚', screen: 'PurchaseOrders'},
+  {label: 'Reports', icon: '📊', screen: 'Reports'},
+  {label: 'Settings', icon: '⚙️', screen: 'Settings'},
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const DashboardScreen: React.FC<Props> = ({ navigation, onLogout }) => {
+const DashboardScreen: React.FC<Props> = ({navigation, onLogout}) => {
   const [summary, setSummary] = useState<TodaySummary>({
     total_sales: 0,
     transaction_count: 0,
@@ -76,11 +76,13 @@ const DashboardScreen: React.FC<Props> = ({ navigation, onLogout }) => {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     try {
-      const s = getTodaySummary();
-      const w = getWeeklySales();
-      const appSettings = getAllSettings();
+      const [s, w, appSettings] = await Promise.all([
+        getTodaySummary(),
+        getWeeklySales(),
+        getAllSettings(),
+      ]);
       setSummary(s);
       setWeeklySales(w);
       setSettings(appSettings);
@@ -93,9 +95,15 @@ const DashboardScreen: React.FC<Props> = ({ navigation, onLogout }) => {
     loadData();
   }, [loadData]);
 
-  const onRefresh = () => {
+  // Reload when coming back to this screen
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', loadData);
+    return unsubscribe;
+  }, [navigation, loadData]);
+
+  const onRefresh = async () => {
     setRefreshing(true);
-    loadData();
+    await loadData();
     setRefreshing(false);
   };
 
@@ -110,9 +118,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, onLogout }) => {
   const formatSecondaryCurrency = (amount: number) => {
     if (!settings || !settings.secondary_currency_code) return '';
     const converted = amount * settings.exchange_rate;
-    return `${converted.toLocaleString()} ${
-      settings.secondary_currency_symbol
-    }`;
+    return `${converted.toLocaleString()} ${settings.secondary_currency_symbol}`;
   };
 
   const getDayLabel = (dateStr: string) => {
@@ -165,20 +171,16 @@ const DashboardScreen: React.FC<Props> = ({ navigation, onLogout }) => {
         style={styles.scroll}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
+        }>
+
         {/* KPI Cards (FR-DAS-01) */}
         <View style={styles.kpiGrid}>
           <View style={styles.kpiCard}>
             <Text style={styles.kpiIcon}>💰</Text>
             <Text style={styles.kpiLabel}>Sales today</Text>
-            <Text style={styles.kpiValue}>
-              {formatCurrency(summary.total_sales)}
-            </Text>
+            <Text style={styles.kpiValue}>{formatCurrency(summary.total_sales)}</Text>
             {settings?.secondary_currency_code ? (
-              <Text style={styles.kpiSub}>
-                {formatSecondaryCurrency(summary.total_sales)}
-              </Text>
+              <Text style={styles.kpiSub}>{formatSecondaryCurrency(summary.total_sales)}</Text>
             ) : null}
           </View>
           <View style={styles.kpiCard}>
@@ -190,16 +192,11 @@ const DashboardScreen: React.FC<Props> = ({ navigation, onLogout }) => {
           <View style={styles.kpiCard}>
             <Text style={styles.kpiIcon}>🏆</Text>
             <Text style={styles.kpiLabel}>Best seller</Text>
-            <Text
-              style={[styles.kpiValue, styles.kpiBestName]}
-              numberOfLines={2}
-            >
+            <Text style={styles.kpiBestName} numberOfLines={2}>
               {summary.best_selling_product ?? '—'}
             </Text>
             {summary.best_selling_qty > 0 && (
-              <Text style={styles.kpiSub}>
-                x{summary.best_selling_qty} units
-              </Text>
+              <Text style={styles.kpiSub}>x{summary.best_selling_qty} units</Text>
             )}
           </View>
         </View>
@@ -232,7 +229,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, onLogout }) => {
           )}
         </View>
 
-        {/* Quick Access (FR-DAS links to all modules) */}
+        {/* Quick Access */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Quick access</Text>
           <View style={styles.quickGrid}>
@@ -240,14 +237,14 @@ const DashboardScreen: React.FC<Props> = ({ navigation, onLogout }) => {
               <TouchableOpacity
                 key={item.screen}
                 style={styles.quickBtn}
-                onPress={() => navigation.navigate(item.screen as any)}
-              >
+                onPress={() => navigation.navigate(item.screen as any)}>
                 <Text style={styles.quickIcon}>{item.icon}</Text>
                 <Text style={styles.quickLabel}>{item.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
+
       </ScrollView>
     </View>
   );
@@ -256,8 +253,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, onLogout }) => {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  // Topbar
+  container: {flex: 1, backgroundColor: COLORS.background},
   topbar: {
     backgroundColor: COLORS.primary,
     flexDirection: 'row',
@@ -266,11 +262,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  topbarTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
-  topbarSub: { color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 2 },
-  topbarIcons: { flexDirection: 'row', gap: 14 },
-  topbarIcon: { fontSize: 18 },
-  // Rate bar
+  topbarTitle: {color: '#fff', fontSize: 16, fontWeight: '500'},
+  topbarSub: {color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 2},
+  topbarIcons: {flexDirection: 'row', gap: 14},
+  topbarIcon: {fontSize: 18},
   rateBar: {
     backgroundColor: COLORS.rateBg,
     borderBottomWidth: 0.5,
@@ -278,11 +273,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 5,
   },
-  rateText: { fontSize: 11, color: COLORS.primary },
-  // Scroll
-  scroll: { flex: 1, padding: 12 },
-  // KPI
-  kpiGrid: { flexDirection: 'row', gap: 6, marginBottom: 10 },
+  rateText: {fontSize: 11, color: COLORS.primary},
+  scroll: {flex: 1, padding: 12},
+  kpiGrid: {flexDirection: 'row', gap: 6, marginBottom: 10},
   kpiCard: {
     flex: 1,
     backgroundColor: COLORS.white,
@@ -291,17 +284,11 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     padding: 10,
   },
-  kpiIcon: { fontSize: 14, marginBottom: 4 },
-  kpiLabel: { fontSize: 9, color: COLORS.textMuted, marginBottom: 3 },
-  kpiValue: { fontSize: 15, fontWeight: '500', color: COLORS.text },
-  kpiBestName: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: COLORS.text,
-    lineHeight: 16,
-  },
-  kpiSub: { fontSize: 9, color: COLORS.textMuted, marginTop: 2 },
-  // Card
+  kpiIcon: {fontSize: 14, marginBottom: 4},
+  kpiLabel: {fontSize: 9, color: COLORS.textMuted, marginBottom: 3},
+  kpiValue: {fontSize: 15, fontWeight: '500', color: COLORS.text},
+  kpiBestName: {fontSize: 12, fontWeight: '500', color: COLORS.text, lineHeight: 16},
+  kpiSub: {fontSize: 9, color: COLORS.textMuted, marginTop: 2},
   card: {
     backgroundColor: COLORS.white,
     borderRadius: 8,
@@ -310,35 +297,13 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 10,
   },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: COLORS.textSecondary,
-    marginBottom: 10,
-  },
-  emptyText: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    paddingVertical: 16,
-  },
-  // Chart
-  chartArea: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    height: 100,
-    gap: 4,
-  },
-  barWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 4,
-  },
-  bar: { width: '100%', borderRadius: 3 },
-  barLabel: { fontSize: 9, color: COLORS.textMuted },
-  // Quick access
-  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  sectionTitle: {fontSize: 12, fontWeight: '500', color: COLORS.textSecondary, marginBottom: 10},
+  emptyText: {fontSize: 11, color: COLORS.textMuted, textAlign: 'center', paddingVertical: 16},
+  chartArea: {flexDirection: 'row', alignItems: 'flex-end', height: 100, gap: 4},
+  barWrap: {flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4},
+  bar: {width: '100%', borderRadius: 3},
+  barLabel: {fontSize: 9, color: COLORS.textMuted},
+  quickGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 6},
   quickBtn: {
     width: '31%',
     backgroundColor: COLORS.background,
@@ -349,12 +314,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  quickIcon: { fontSize: 20 },
-  quickLabel: {
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
+  quickIcon: {fontSize: 20},
+  quickLabel: {fontSize: 10, color: COLORS.textSecondary, textAlign: 'center'},
 });
 
 export default DashboardScreen;

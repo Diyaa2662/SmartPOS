@@ -40,6 +40,7 @@ const COLORS = {
 const LoginScreen: React.FC<Props> = ({onLogin}) => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
   const [pin, setPin] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleKeyPress = (key: string) => {
     if (pin.length >= PIN_LENGTH) return;
@@ -56,26 +57,36 @@ const LoginScreen: React.FC<Props> = ({onLogin}) => {
     setPin(prev => prev.slice(0, -1));
   };
 
-  const handleSubmit = (enteredPin: string) => {
-    if (selectedRole === 'admin') {
-      // Check if admin PIN has been set
-      const storedHash = getSetting('admin_pin_hash');
-      if (!storedHash) {
-        // First launch — no PIN set yet, allow entry and prompt to set PIN
-        onLogin('admin');
-        return;
-      }
+  const handleSubmit = async (enteredPin: string) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      if (selectedRole === 'admin') {
+        // Check if admin PIN has been set
+        const storedHash = await getSetting('admin_pin_hash');
+        if (!storedHash) {
+          // First launch — no PIN set yet, allow entry and prompt to set PIN
+          onLogin('admin');
+          return;
+        }
 
-      const isValid = verifyAdminPin(enteredPin);
-      if (isValid) {
-        onLogin('admin');
+        const isValid = await verifyAdminPin(enteredPin);
+        if (isValid) {
+          onLogin('admin');
+        } else {
+          Alert.alert('Incorrect PIN', 'Please try again.');
+          setPin('');
+        }
       } else {
-        Alert.alert('Incorrect PIN', 'Please try again.');
-        setPin('');
+        // Cashier — no PIN required (SRS Section 2.4, NFR-SEC-01 only requires Admin PIN)
+        onLogin('cashier');
       }
-    } else {
-      // Cashier — no PIN required (SRS Section 2.4, NFR-SEC-01 only requires Admin PIN)
-      onLogin('cashier');
+    } catch (e) {
+      console.error('Login error:', e);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+      setPin('');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -160,6 +171,7 @@ const LoginScreen: React.FC<Props> = ({onLogin}) => {
                 <TouchableOpacity
                   key={key}
                   style={styles.key}
+                  disabled={submitting}
                   onPress={() => handleKeyPress(key)}>
                   <Text style={styles.keyText}>{key}</Text>
                 </TouchableOpacity>
@@ -168,11 +180,13 @@ const LoginScreen: React.FC<Props> = ({onLogin}) => {
               <View style={styles.keyEmpty} />
               <TouchableOpacity
                 style={styles.key}
+                disabled={submitting}
                 onPress={() => handleKeyPress('0')}>
                 <Text style={styles.keyText}>0</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.key, styles.keyDelete]}
+                disabled={submitting}
                 onPress={handleDelete}>
                 <Text style={styles.keyDeleteText}>⌫</Text>
               </TouchableOpacity>
@@ -193,7 +207,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  // Header
   header: {
     backgroundColor: COLORS.primary,
     alignItems: 'center',
@@ -222,14 +235,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 3,
   },
-  // PIN area
   pinArea: {
     flex: 1,
     alignItems: 'center',
     paddingTop: 28,
     paddingHorizontal: 20,
   },
-  // Role tabs
   roleTabs: {
     flexDirection: 'row',
     gap: 8,
@@ -258,13 +269,11 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '500',
   },
-  // PIN label
   pinLabel: {
     fontSize: 13,
     color: COLORS.textSecondary,
     marginBottom: 16,
   },
-  // PIN dots
   pinDots: {
     flexDirection: 'row',
     gap: 14,
@@ -281,7 +290,6 @@ const styles = StyleSheet.create({
   dotFilled: {
     backgroundColor: COLORS.primary,
   },
-  // Numpad
   numpad: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -314,7 +322,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#555555',
   },
-  // Version
   version: {
     marginTop: 24,
     fontSize: 11,

@@ -1,6 +1,8 @@
 // src/database/transactionDAO.ts
 // SmartPOS - Transaction Data Access Object
 // Based on SRS Section 3.3 (FR-SAL) and Section 3.8 (FR-CUR)
+// NOTE: All functions are async because op-sqlite's execute() returns a Promise
+// NOTE: result.rows is a plain array (Record<string, Scalar>[]) — use [i], not .item(i)
 
 import {getDatabase} from './database';
 import {Transaction, TransactionItem, TransactionWithItems, CartItem} from '../types';
@@ -8,25 +10,25 @@ import {getAllSettings} from './settingsDAO';
 
 // ─── Get transaction by ID with items (for receipt — FR-PRT-02) ───────────────
 
-export const getTransactionById = (id: number): TransactionWithItems | null => {
+export const getTransactionById = async (id: number): Promise<TransactionWithItems | null> => {
   const db = getDatabase();
 
-  const txResult = db.execute(
+  const txResult = await db.execute(
     'SELECT * FROM transactions WHERE id = ?;',
     [id],
   );
   if (!txResult.rows || txResult.rows.length === 0) return null;
 
-  const transaction = txResult.rows.item(0) as TransactionWithItems;
+  const transaction = txResult.rows[0] as unknown as TransactionWithItems;
 
-  const itemsResult = db.execute(
+  const itemsResult = await db.execute(
     'SELECT * FROM transaction_items WHERE transaction_id = ?;',
     [id],
   );
   transaction.items = [];
   if (itemsResult.rows) {
     for (let i = 0; i < itemsResult.rows.length; i++) {
-      transaction.items.push(itemsResult.rows.item(i) as TransactionItem);
+      transaction.items.push(itemsResult.rows[i] as unknown as TransactionItem);
     }
   }
 
@@ -35,29 +37,29 @@ export const getTransactionById = (id: number): TransactionWithItems | null => {
 
 // ─── Get recent transactions (for receipt history — FR-PRT-03) ───────────────
 
-export const getRecentTransactions = (limit: number = 20): Transaction[] => {
+export const getRecentTransactions = async (limit: number = 20): Promise<Transaction[]> => {
   const db = getDatabase();
-  const result = db.execute(
+  const result = await db.execute(
     'SELECT * FROM transactions ORDER BY created_at DESC LIMIT ?;',
     [limit],
   );
   const transactions: Transaction[] = [];
   if (!result.rows) return transactions;
   for (let i = 0; i < result.rows.length; i++) {
-    transactions.push(result.rows.item(i) as Transaction);
+    transactions.push(result.rows[i] as unknown as Transaction);
   }
   return transactions;
 };
 
 // ─── Get transactions by date range (for reports — FR-RPT-01) ────────────────
 
-export const getTransactionsByDateRange = (
+export const getTransactionsByDateRange = async (
   startDate: string,
   endDate: string,
-): TransactionWithItems[] => {
+): Promise<TransactionWithItems[]> => {
   const db = getDatabase();
 
-  const txResult = db.execute(
+  const txResult = await db.execute(
     `SELECT * FROM transactions
      WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)
      ORDER BY created_at DESC;`,
@@ -68,16 +70,16 @@ export const getTransactionsByDateRange = (
   if (!txResult.rows) return transactions;
 
   for (let i = 0; i < txResult.rows.length; i++) {
-    const tx = txResult.rows.item(i) as TransactionWithItems;
+    const tx = txResult.rows[i] as unknown as TransactionWithItems;
 
-    const itemsResult = db.execute(
+    const itemsResult = await db.execute(
       'SELECT * FROM transaction_items WHERE transaction_id = ?;',
       [tx.id],
     );
     tx.items = [];
     if (itemsResult.rows) {
       for (let j = 0; j < itemsResult.rows.length; j++) {
-        tx.items.push(itemsResult.rows.item(j) as TransactionItem);
+        tx.items.push(itemsResult.rows[j] as unknown as TransactionItem);
       }
     }
     transactions.push(tx);
@@ -88,15 +90,15 @@ export const getTransactionsByDateRange = (
 
 // ─── Get today's summary (for dashboard — FR-DAS-01) ─────────────────────────
 
-export const getTodaySummary = (): {
+export const getTodaySummary = async (): Promise<{
   total_sales: number;
   transaction_count: number;
   best_selling_product: string | null;
   best_selling_qty: number;
-} => {
+}> => {
   const db = getDatabase();
 
-  const summaryResult = db.execute(
+  const summaryResult = await db.execute(
     `SELECT
        COALESCE(SUM(grand_total), 0) as total_sales,
        COUNT(*) as transaction_count
@@ -104,12 +106,13 @@ export const getTodaySummary = (): {
      WHERE date(created_at) = date('now');`,
   );
 
-  const summary = summaryResult.rows?.item(0) as {
+  const summary = summaryResult.rows?.[0] as unknown as {
     total_sales: number;
     transaction_count: number;
   };
 
-  const bestResult = db.execute(
+  // Best selling product today by quantity
+  const bestResult = await db.execute(
     `SELECT ti.product_name, SUM(ti.quantity) as total_qty
      FROM transaction_items ti
      JOIN transactions t ON t.id = ti.transaction_id
@@ -119,10 +122,10 @@ export const getTodaySummary = (): {
      LIMIT 1;`,
   );
 
-  const best = bestResult.rows?.item(0) as {
+  const best = bestResult.rows?.[0] as unknown as {
     product_name: string;
     total_qty: number;
-  } | null;
+  } | undefined;
 
   return {
     total_sales: summary?.total_sales ?? 0,
@@ -134,9 +137,9 @@ export const getTodaySummary = (): {
 
 // ─── Get sales by day for chart (FR-DAS-02) ───────────────────────────────────
 
-export const getWeeklySales = (): {date: string; total: number}[] => {
+export const getWeeklySales = async (): Promise<{date: string; total: number}[]> => {
   const db = getDatabase();
-  const result = db.execute(
+  const result = await db.execute(
     `SELECT date(created_at) as date, SUM(grand_total) as total
      FROM transactions
      WHERE date(created_at) >= date('now', '-6 days')
@@ -146,20 +149,20 @@ export const getWeeklySales = (): {date: string; total: number}[] => {
   const rows: {date: string; total: number}[] = [];
   if (!result.rows) return rows;
   for (let i = 0; i < result.rows.length; i++) {
-    rows.push(result.rows.item(i) as {date: string; total: number});
+    rows.push(result.rows[i] as unknown as {date: string; total: number});
   }
   return rows;
 };
 
 // ─── Get top products for period (FR-DAS-04, FR-RPT-02) ──────────────────────
 
-export const getTopProducts = (
+export const getTopProducts = async (
   startDate: string,
   endDate: string,
   limit: number = 10,
-): {product_name: string; total_qty: number; total_revenue: number}[] => {
+): Promise<{product_name: string; total_qty: number; total_revenue: number}[]> => {
   const db = getDatabase();
-  const result = db.execute(
+  const result = await db.execute(
     `SELECT
        ti.product_name,
        SUM(ti.quantity) as total_qty,
@@ -175,19 +178,19 @@ export const getTopProducts = (
   const rows: {product_name: string; total_qty: number; total_revenue: number}[] = [];
   if (!result.rows) return rows;
   for (let i = 0; i < result.rows.length; i++) {
-    rows.push(result.rows.item(i) as {product_name: string; total_qty: number; total_revenue: number});
+    rows.push(result.rows[i] as unknown as {product_name: string; total_qty: number; total_revenue: number});
   }
   return rows;
 };
 
 // ─── Get sales by category for period (FR-DAS-03, FR-RPT-02) ─────────────────
 
-export const getSalesByCategory = (
+export const getSalesByCategory = async (
   startDate: string,
   endDate: string,
-): {category_name: string; total_revenue: number}[] => {
+): Promise<{category_name: string; total_revenue: number}[]> => {
   const db = getDatabase();
-  const result = db.execute(
+  const result = await db.execute(
     `SELECT
        c.name as category_name,
        SUM(ti.line_total) as total_revenue
@@ -203,28 +206,29 @@ export const getSalesByCategory = (
   const rows: {category_name: string; total_revenue: number}[] = [];
   if (!result.rows) return rows;
   for (let i = 0; i < result.rows.length; i++) {
-    rows.push(result.rows.item(i) as {category_name: string; total_revenue: number});
+    rows.push(result.rows[i] as unknown as {category_name: string; total_revenue: number});
   }
   return rows;
 };
 
 // ─── Save completed transaction (FR-SAL-10, FR-CUR-05) ───────────────────────
 
-export const saveTransaction = (
+export const saveTransaction = async (
   cartItems: CartItem[],
   subtotal: number,
   discount_amount: number,
   grand_total: number,
   amount_tendered: number,
   change_due: number,
-): number => {
+): Promise<number> => {
   const db = getDatabase();
-  const settings = getAllSettings();
+  const settings = await getAllSettings();
 
   let insertedId = 0;
 
-  db.transaction(tx => {
-    const txResult = tx.execute(
+  await db.transaction(async tx => {
+    // Save transaction header with exchange rate snapshot (FR-CUR-05)
+    const txResult = await tx.execute(
       `INSERT INTO transactions
         (total_amount, discount_amount, grand_total, amount_tendered, change_due,
          primary_currency_code, secondary_currency_code, exchange_rate_snapshot)
@@ -243,8 +247,9 @@ export const saveTransaction = (
 
     insertedId = txResult.insertId ?? 0;
 
-    cartItems.forEach(cartItem => {
-      tx.execute(
+    // Save each cart item as transaction_item (snapshot product name & price)
+    for (const cartItem of cartItems) {
+      await tx.execute(
         `INSERT INTO transaction_items
           (transaction_id, product_id, product_name, unit_price, discount_price, quantity, line_total)
          VALUES (?, ?, ?, ?, ?, ?, ?);`,
@@ -258,7 +263,7 @@ export const saveTransaction = (
           cartItem.line_total,
         ],
       );
-    });
+    }
   });
 
   return insertedId;

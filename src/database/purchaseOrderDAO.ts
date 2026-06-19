@@ -1,6 +1,8 @@
 // src/database/purchaseOrderDAO.ts
 // SmartPOS - Purchase Order Data Access Object
 // Based on SRS Section 3.7 (FR-PO)
+// NOTE: All functions are async because op-sqlite's execute() returns a Promise
+// NOTE: result.rows is a plain array (Record<string, Scalar>[]) — use [i], not .item(i)
 
 import {getDatabase} from './database';
 import {PurchaseOrder, PurchaseOrderItem, PurchaseOrderWithItems} from '../types';
@@ -8,21 +10,21 @@ import {incrementStock} from './productDAO';
 
 // ─── Generate next PO number (FR-PO-04) ──────────────────────────────────────
 
-const generatePoNumber = (): string => {
+const generatePoNumber = async (): Promise<string> => {
   const db = getDatabase();
-  const result = db.execute(
+  const result = await db.execute(
     'SELECT COUNT(*) as count FROM purchase_orders;',
   );
-  const count = (result.rows?.item(0) as {count: number})?.count ?? 0;
+  const count = (result.rows?.[0] as unknown as {count: number})?.count ?? 0;
   const next = count + 1;
   return `PO-${String(next).padStart(6, '0')}`;
 };
 
 // ─── Get all purchase orders (for history list — FR-PO-05) ───────────────────
 
-export const getAllPurchaseOrders = (): (PurchaseOrder & {item_count: number})[] => {
+export const getAllPurchaseOrders = async (): Promise<(PurchaseOrder & {item_count: number})[]> => {
   const db = getDatabase();
-  const result = db.execute(
+  const result = await db.execute(
     `SELECT po.*, COUNT(poi.id) as item_count
      FROM purchase_orders po
      LEFT JOIN purchase_order_items poi ON poi.purchase_order_id = po.id
@@ -32,32 +34,32 @@ export const getAllPurchaseOrders = (): (PurchaseOrder & {item_count: number})[]
   const orders: (PurchaseOrder & {item_count: number})[] = [];
   if (!result.rows) return orders;
   for (let i = 0; i < result.rows.length; i++) {
-    orders.push(result.rows.item(i) as PurchaseOrder & {item_count: number});
+    orders.push(result.rows[i] as unknown as PurchaseOrder & {item_count: number});
   }
   return orders;
 };
 
 // ─── Get purchase order by ID with items (for detail view — FR-PO-06) ─────────
 
-export const getPurchaseOrderById = (id: number): PurchaseOrderWithItems | null => {
+export const getPurchaseOrderById = async (id: number): Promise<PurchaseOrderWithItems | null> => {
   const db = getDatabase();
 
-  const poResult = db.execute(
+  const poResult = await db.execute(
     'SELECT * FROM purchase_orders WHERE id = ?;',
     [id],
   );
   if (!poResult.rows || poResult.rows.length === 0) return null;
 
-  const po = poResult.rows.item(0) as PurchaseOrderWithItems;
+  const po = poResult.rows[0] as unknown as PurchaseOrderWithItems;
 
-  const itemsResult = db.execute(
+  const itemsResult = await db.execute(
     'SELECT * FROM purchase_order_items WHERE purchase_order_id = ?;',
     [id],
   );
   po.items = [];
   if (itemsResult.rows) {
     for (let i = 0; i < itemsResult.rows.length; i++) {
-      po.items.push(itemsResult.rows.item(i) as PurchaseOrderItem);
+      po.items.push(itemsResult.rows[i] as unknown as PurchaseOrderItem);
     }
   }
 
@@ -73,10 +75,10 @@ export interface NewPOLine {
   purchase_price: number;
 }
 
-export const savePurchaseOrder = (
+export const savePurchaseOrder = async (
   lines: NewPOLine[],
   supplier_note: string | null,
-): number => {
+): Promise<number> => {
   // Validate all lines before saving (FR-PO-07)
   lines.forEach((line, index) => {
     if (!Number.isInteger(line.quantity) || line.quantity <= 0) {
@@ -88,7 +90,7 @@ export const savePurchaseOrder = (
   });
 
   const db = getDatabase();
-  const po_number = generatePoNumber();
+  const po_number = await generatePoNumber();
   const total_cost = lines.reduce(
     (sum, line) => sum + line.quantity * line.purchase_price,
     0,
@@ -96,9 +98,9 @@ export const savePurchaseOrder = (
 
   let insertedId = 0;
 
-  db.transaction(tx => {
+  await db.transaction(async tx => {
     // Insert purchase order header
-    const poResult = tx.execute(
+    const poResult = await tx.execute(
       `INSERT INTO purchase_orders (po_number, supplier_note, total_cost)
        VALUES (?, ?, ?);`,
       [po_number, supplier_note, total_cost],
@@ -107,11 +109,11 @@ export const savePurchaseOrder = (
     insertedId = poResult.insertId ?? 0;
 
     // Insert each line and update stock
-    lines.forEach(line => {
+    for (const line of lines) {
       const line_cost = line.quantity * line.purchase_price;
 
       // Insert PO line (snapshot product name — FR-PO-04)
-      tx.execute(
+      await tx.execute(
         `INSERT INTO purchase_order_items
           (purchase_order_id, product_id, product_name, quantity, purchase_price, line_cost)
          VALUES (?, ?, ?, ?, ?, ?);`,
@@ -126,8 +128,8 @@ export const savePurchaseOrder = (
       );
 
       // Increment product stock (FR-PO-03)
-      incrementStock(line.product_id, line.quantity);
-    });
+      await incrementStock(line.product_id, line.quantity);
+    }
   });
 
   return insertedId;

@@ -1,16 +1,18 @@
 // src/database/productDAO.ts
 // SmartPOS - Product Data Access Object
 // Based on SRS Section 3.2 (FR-PRD)
+// NOTE: All functions are async because op-sqlite's execute() returns a Promise
+// NOTE: result.rows is a plain array (Record<string, Scalar>[]) — use [i], not .item(i)
 
 import {getDatabase} from './database';
 import {Product, ProductWithCategory} from '../types';
 
 // ─── Get all products with category name (FR-PRD-04) ─────────────────────────
 
-export const getAllProducts = (
+export const getAllProducts = async (
   search?: string,
   category_id?: number,
-): ProductWithCategory[] => {
+): Promise<ProductWithCategory[]> => {
   const db = getDatabase();
 
   let query = `
@@ -35,46 +37,46 @@ export const getAllProducts = (
 
   query += ' ORDER BY p.name ASC;';
 
-  const result = db.execute(query, params);
+  const result = await db.execute(query, params);
   const products: ProductWithCategory[] = [];
   if (!result.rows) return products;
   for (let i = 0; i < result.rows.length; i++) {
-    products.push(result.rows.item(i) as ProductWithCategory);
+    products.push(result.rows[i] as unknown as ProductWithCategory);
   }
   return products;
 };
 
 // ─── Get product by ID ────────────────────────────────────────────────────────
 
-export const getProductById = (id: number): Product | null => {
+export const getProductById = async (id: number): Promise<Product | null> => {
   const db = getDatabase();
-  const result = db.execute(
+  const result = await db.execute(
     'SELECT * FROM products WHERE id = ?;',
     [id],
   );
   if (result.rows && result.rows.length > 0) {
-    return result.rows.item(0) as Product;
+    return result.rows[0] as unknown as Product;
   }
   return null;
 };
 
 // ─── Get product by barcode (FR-SAL-02, FR-SAL-11) ───────────────────────────
 
-export const getProductByBarcode = (barcode: string): Product | null => {
+export const getProductByBarcode = async (barcode: string): Promise<Product | null> => {
   const db = getDatabase();
-  const result = db.execute(
+  const result = await db.execute(
     'SELECT * FROM products WHERE barcode = ?;',
     [barcode],
   );
   if (result.rows && result.rows.length > 0) {
-    return result.rows.item(0) as Product;
+    return result.rows[0] as unknown as Product;
   }
   return null;
 };
 
 // ─── Generate unique Code128 barcode (FR-PRD-05) ─────────────────────────────
 
-export const generateUniqueBarcode = (): string => {
+export const generateUniqueBarcode = async (): Promise<string> => {
   const db = getDatabase();
   let barcode = '';
   let isUnique = false;
@@ -85,11 +87,11 @@ export const generateUniqueBarcode = (): string => {
     barcode = `128${random}`;
 
     // Check uniqueness (FR-PRD-08)
-    const result = db.execute(
+    const result = await db.execute(
       'SELECT COUNT(*) as count FROM products WHERE barcode = ?;',
       [barcode],
     );
-    const count = (result.rows?.item(0) as {count: number})?.count ?? 0;
+    const count = (result.rows?.[0] as unknown as {count: number})?.count ?? 0;
     isUnique = count === 0;
   }
 
@@ -98,7 +100,7 @@ export const generateUniqueBarcode = (): string => {
 
 // ─── Check barcode uniqueness (FR-PRD-08) ────────────────────────────────────
 
-export const isBarcodeUnique = (barcode: string, excludeId?: number): boolean => {
+export const isBarcodeUnique = async (barcode: string, excludeId?: number): Promise<boolean> => {
   const db = getDatabase();
   let query = 'SELECT COUNT(*) as count FROM products WHERE barcode = ?';
   const params: (string | number)[] = [barcode];
@@ -109,12 +111,13 @@ export const isBarcodeUnique = (barcode: string, excludeId?: number): boolean =>
   }
 
   query += ';';
-  const result = db.execute(query, params);
-  const count = (result.rows?.item(0) as {count: number})?.count ?? 0;
+  const result = await db.execute(query, params);
+  const count = (result.rows?.[0] as unknown as {count: number})?.count ?? 0;
   return count === 0;
 };
 
 // ─── Get effective selling price (FR-PRD-09) ─────────────────────────────────
+// Pure function — no DB access, stays sync
 
 export const getEffectivePrice = (product: Product): number => {
   if (product.discount_price !== null && product.discount_price < product.price) {
@@ -125,7 +128,7 @@ export const getEffectivePrice = (product: Product): number => {
 
 // ─── Create product (FR-PRD-01) ──────────────────────────────────────────────
 
-export const createProduct = (
+export const createProduct = async (
   name: string,
   category_id: number,
   price: number,
@@ -133,15 +136,15 @@ export const createProduct = (
   barcode: string | null,
   description: string | null,
   stock_qty: number,
-): number => {
+): Promise<number> => {
   const db = getDatabase();
 
   // Validate barcode uniqueness (FR-PRD-08)
-  if (barcode !== null && !isBarcodeUnique(barcode)) {
+  if (barcode !== null && !(await isBarcodeUnique(barcode))) {
     throw new Error('Barcode already exists');
   }
 
-  const result = db.execute(
+  const result = await db.execute(
     `INSERT INTO products
       (name, category_id, price, discount_price, barcode, description, stock_qty, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'));`,
@@ -153,7 +156,7 @@ export const createProduct = (
 
 // ─── Update product (FR-PRD-02) ──────────────────────────────────────────────
 
-export const updateProduct = (
+export const updateProduct = async (
   id: number,
   name: string,
   category_id: number,
@@ -162,15 +165,15 @@ export const updateProduct = (
   barcode: string | null,
   description: string | null,
   stock_qty: number,
-): void => {
+): Promise<void> => {
   const db = getDatabase();
 
   // Validate barcode uniqueness excluding current product (FR-PRD-08)
-  if (barcode !== null && !isBarcodeUnique(barcode, id)) {
+  if (barcode !== null && !(await isBarcodeUnique(barcode, id))) {
     throw new Error('Barcode already exists');
   }
 
-  db.execute(
+  await db.execute(
     `UPDATE products
      SET name = ?, category_id = ?, price = ?, discount_price = ?,
          barcode = ?, description = ?, stock_qty = ?, updated_at = datetime('now')
@@ -181,16 +184,16 @@ export const updateProduct = (
 
 // ─── Delete product (FR-PRD-03) ──────────────────────────────────────────────
 
-export const deleteProduct = (id: number): void => {
+export const deleteProduct = async (id: number): Promise<void> => {
   const db = getDatabase();
-  db.execute('DELETE FROM products WHERE id = ?;', [id]);
+  await db.execute('DELETE FROM products WHERE id = ?;', [id]);
 };
 
 // ─── Update stock quantity (called after purchase order — FR-PO-03) ──────────
 
-export const incrementStock = (product_id: number, quantity: number): void => {
+export const incrementStock = async (product_id: number, quantity: number): Promise<void> => {
   const db = getDatabase();
-  db.execute(
+  await db.execute(
     `UPDATE products
      SET stock_qty = stock_qty + ?, updated_at = datetime('now')
      WHERE id = ?;`,

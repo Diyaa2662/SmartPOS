@@ -1,5 +1,6 @@
 // src/database/database.ts
 // SmartPOS - Database Initialization
+// NOTE: @op-engineering/op-sqlite execute() returns a Promise — all DB calls are async
 
 import {open, DB} from '@op-engineering/op-sqlite';
 import {ALL_TABLES} from './schema';
@@ -7,27 +8,38 @@ import {ALL_TABLES} from './schema';
 const DB_NAME = 'smartpos.db';
 
 let db: DB;
+let initPromise: Promise<void> | null = null;
 
 export const getDatabase = (): DB => {
   if (!db) {
     db = open({name: DB_NAME});
-    initializeDatabase();
   }
   return db;
 };
 
-const initializeDatabase = (): void => {
+// Call this once at app startup (e.g. in App.tsx) and await it
+// before rendering any screen that touches the database.
+export const initDatabase = (): Promise<void> => {
+  if (!initPromise) {
+    initPromise = initializeDatabase();
+  }
+  return initPromise;
+};
+
+const initializeDatabase = async (): Promise<void> => {
   try {
+    const database = getDatabase();
+
     // Enable foreign keys (disabled by default in SQLite)
-    db.execute('PRAGMA foreign_keys = ON;');
+    await database.execute('PRAGMA foreign_keys = ON;');
 
     // Create all tables (IF NOT EXISTS — safe to run on every launch)
-    ALL_TABLES.forEach(tableSQL => {
-      db.execute(tableSQL);
-    });
+    for (const tableSQL of ALL_TABLES) {
+      await database.execute(tableSQL);
+    }
 
     // Insert default settings if not already set (FR-CUR-01, FR-CUR-02)
-    insertDefaultSettings();
+    await insertDefaultSettings();
 
     console.log('SmartPOS database initialized successfully');
   } catch (error) {
@@ -36,7 +48,9 @@ const initializeDatabase = (): void => {
   }
 };
 
-const insertDefaultSettings = (): void => {
+const insertDefaultSettings = async (): Promise<void> => {
+  const database = getDatabase();
+
   const defaults: {key: string; value: string}[] = [
     {key: 'store_name', value: 'My Store'},
     {key: 'primary_currency_code', value: 'USD'},
@@ -50,11 +64,11 @@ const insertDefaultSettings = (): void => {
     {key: 'admin_pin_hash', value: ''},
   ];
 
-  defaults.forEach(({key, value}) => {
+  for (const {key, value} of defaults) {
     // INSERT OR IGNORE — only inserts if key doesn't exist yet
-    db.execute(
+    await database.execute(
       'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?);',
       [key, value],
     );
-  });
+  }
 };

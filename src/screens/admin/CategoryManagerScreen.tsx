@@ -69,6 +69,7 @@ const CategoryModal: React.FC<ModalProps> = ({
   const [description, setDescription] = useState('');
   const [color, setColor] = useState(CATEGORY_COLORS[0]);
   const [parentId, setParentId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (editCategory) {
@@ -84,21 +85,24 @@ const CategoryModal: React.FC<ModalProps> = ({
     }
   }, [editCategory, visible]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('Validation', 'Category name is required.');
       return;
     }
+    setSaving(true);
     try {
       if (editCategory) {
-        updateCategory(editCategory.id, name.trim(), description.trim() || null, color, parentId);
+        await updateCategory(editCategory.id, name.trim(), description.trim() || null, color, parentId);
       } else {
-        createCategory(name.trim(), description.trim() || null, color, parentId);
+        await createCategory(name.trim(), description.trim() || null, color, parentId);
       }
       onSave();
       onClose();
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'Could not save category.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -180,8 +184,11 @@ const CategoryModal: React.FC<ModalProps> = ({
             <TouchableOpacity style={modalStyles.cancelBtn} onPress={onClose}>
               <Text style={modalStyles.cancelText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={modalStyles.saveBtn} onPress={handleSave}>
-              <Text style={modalStyles.saveText}>Save</Text>
+            <TouchableOpacity
+              style={[modalStyles.saveBtn, saving && modalStyles.saveBtnDisabled]}
+              onPress={handleSave}
+              disabled={saving}>
+              <Text style={modalStyles.saveText}>{saving ? 'Saving...' : 'Save'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -200,10 +207,14 @@ const CategoryManagerScreen: React.FC<Props> = ({navigation}) => {
   const [editCategory, setEditCategory] = useState<CategoryWithChildren | Category | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     try {
-      setTree(getAllCategoriesTree());
-      setRootCategories(getRootCategories());
+      const [treeData, roots] = await Promise.all([
+        getAllCategoriesTree(),
+        getRootCategories(),
+      ]);
+      setTree(treeData);
+      setRootCategories(roots);
     } catch (e) {
       console.error('CategoryManager load error:', e);
     }
@@ -211,7 +222,11 @@ const CategoryManagerScreen: React.FC<Props> = ({navigation}) => {
 
   useEffect(() => {loadData();}, [loadData]);
 
-  const onRefresh = () => {setRefreshing(true); loadData(); setRefreshing(false);};
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
   const toggleExpand = (id: number) => {
     setExpanded(prev => {
@@ -230,10 +245,10 @@ const CategoryManagerScreen: React.FC<Props> = ({navigation}) => {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             try {
-              deleteCategory(cat.id);
-              loadData();
+              await deleteCategory(cat.id);
+              await loadData();
             } catch (e: any) {
               Alert.alert('Cannot delete', e.message);
             }
@@ -446,6 +461,7 @@ const modalStyles = StyleSheet.create({
     padding: 12,
     alignItems: 'center',
   },
+  saveBtnDisabled: {opacity: 0.6},
   saveText: {fontSize: 13, fontWeight: '500', color: '#fff'},
 });
 
