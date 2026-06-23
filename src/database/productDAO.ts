@@ -4,10 +4,15 @@
 // NOTE: All functions are async because op-sqlite's execute() returns a Promise
 // NOTE: result.rows is a plain array (Record<string, Scalar>[]) — use [i], not .item(i)
 
-import {getDatabase} from './database';
-import {Product, ProductWithCategory} from '../types';
+import { getDatabase } from './database';
+import { Product, ProductWithCategory } from '../types';
+import { getCategoryIdWithDescendants } from './categoryDAO';
 
 // ─── Get all products with category name (FR-PRD-04) ─────────────────────────
+// category_id filtering now also matches products under any nested
+// subcategory (e.g. filtering by "Chips" also returns products under
+// "Chips Medium Size" -> "Doritos"), since categories support unlimited
+// nesting depth (client-requested change).
 
 export const getAllProducts = async (
   search?: string,
@@ -29,10 +34,12 @@ export const getAllProducts = async (
     params.push(`%${search}%`, `%${search}%`);
   }
 
-  // Filter by category (FR-PRD-04)
+  // Filter by category, including all of its nested subcategories (FR-PRD-04, extended)
   if (category_id !== undefined) {
-    query += ' AND p.category_id = ?';
-    params.push(category_id);
+    const idsToMatch = await getCategoryIdWithDescendants(category_id);
+    const placeholders = idsToMatch.map(() => '?').join(', ');
+    query += ` AND p.category_id IN (${placeholders})`;
+    params.push(...idsToMatch);
   }
 
   query += ' ORDER BY p.name ASC;';
@@ -50,10 +57,7 @@ export const getAllProducts = async (
 
 export const getProductById = async (id: number): Promise<Product | null> => {
   const db = getDatabase();
-  const result = await db.execute(
-    'SELECT * FROM products WHERE id = ?;',
-    [id],
-  );
+  const result = await db.execute('SELECT * FROM products WHERE id = ?;', [id]);
   if (result.rows && result.rows.length > 0) {
     return result.rows[0] as unknown as Product;
   }
@@ -62,12 +66,13 @@ export const getProductById = async (id: number): Promise<Product | null> => {
 
 // ─── Get product by barcode (FR-SAL-02, FR-SAL-11) ───────────────────────────
 
-export const getProductByBarcode = async (barcode: string): Promise<Product | null> => {
+export const getProductByBarcode = async (
+  barcode: string,
+): Promise<Product | null> => {
   const db = getDatabase();
-  const result = await db.execute(
-    'SELECT * FROM products WHERE barcode = ?;',
-    [barcode],
-  );
+  const result = await db.execute('SELECT * FROM products WHERE barcode = ?;', [
+    barcode,
+  ]);
   if (result.rows && result.rows.length > 0) {
     return result.rows[0] as unknown as Product;
   }
@@ -91,7 +96,8 @@ export const generateUniqueBarcode = async (): Promise<string> => {
       'SELECT COUNT(*) as count FROM products WHERE barcode = ?;',
       [barcode],
     );
-    const count = (result.rows?.[0] as unknown as {count: number})?.count ?? 0;
+    const count =
+      (result.rows?.[0] as unknown as { count: number })?.count ?? 0;
     isUnique = count === 0;
   }
 
@@ -100,7 +106,10 @@ export const generateUniqueBarcode = async (): Promise<string> => {
 
 // ─── Check barcode uniqueness (FR-PRD-08) ────────────────────────────────────
 
-export const isBarcodeUnique = async (barcode: string, excludeId?: number): Promise<boolean> => {
+export const isBarcodeUnique = async (
+  barcode: string,
+  excludeId?: number,
+): Promise<boolean> => {
   const db = getDatabase();
   let query = 'SELECT COUNT(*) as count FROM products WHERE barcode = ?';
   const params: (string | number)[] = [barcode];
@@ -112,7 +121,7 @@ export const isBarcodeUnique = async (barcode: string, excludeId?: number): Prom
 
   query += ';';
   const result = await db.execute(query, params);
-  const count = (result.rows?.[0] as unknown as {count: number})?.count ?? 0;
+  const count = (result.rows?.[0] as unknown as { count: number })?.count ?? 0;
   return count === 0;
 };
 
@@ -120,7 +129,10 @@ export const isBarcodeUnique = async (barcode: string, excludeId?: number): Prom
 // Pure function — no DB access, stays sync
 
 export const getEffectivePrice = (product: Product): number => {
-  if (product.discount_price !== null && product.discount_price < product.price) {
+  if (
+    product.discount_price !== null &&
+    product.discount_price < product.price
+  ) {
     return product.discount_price;
   }
   return product.price;
@@ -178,7 +190,16 @@ export const updateProduct = async (
      SET name = ?, category_id = ?, price = ?, discount_price = ?,
          barcode = ?, description = ?, stock_qty = ?, updated_at = datetime('now')
      WHERE id = ?;`,
-    [name, category_id, price, discount_price, barcode, description, stock_qty, id],
+    [
+      name,
+      category_id,
+      price,
+      discount_price,
+      barcode,
+      description,
+      stock_qty,
+      id,
+    ],
   );
 };
 
@@ -191,7 +212,10 @@ export const deleteProduct = async (id: number): Promise<void> => {
 
 // ─── Update stock quantity (called after purchase order — FR-PO-03) ──────────
 
-export const incrementStock = async (product_id: number, quantity: number): Promise<void> => {
+export const incrementStock = async (
+  product_id: number,
+  quantity: number,
+): Promise<void> => {
   const db = getDatabase();
   await db.execute(
     `UPDATE products

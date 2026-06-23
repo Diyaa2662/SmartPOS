@@ -3,6 +3,10 @@
 // SmartPOS - Receipt Preview Screen
 // Based on SRS Section 3.4 (FR-PRT) and Section 8
 // Accessible by both Admin and Cashier roles
+// Print-currency toggle added per client request: lets the user choose to
+// display/print the receipt in the primary or secondary currency, converted
+// using the exchange_rate_snapshot stored on that specific transaction
+// (FR-CUR-07) — never the current live rate.
 
 import React, { useEffect, useState, useCallback } from 'react';
 import {
@@ -41,6 +45,8 @@ type Props = {
   >;
 };
 
+type PrintCurrency = 'primary' | 'secondary';
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const COLORS = {
@@ -64,6 +70,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
   const [history, setHistory] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [printCurrency, setPrintCurrency] = useState<PrintCurrency>('primary');
 
   const loadData = useCallback(async () => {
     try {
@@ -79,6 +86,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
       if (targetId) {
         const tx = await getTransactionById(targetId);
         setReceipt(tx);
+        setPrintCurrency('primary');
       }
     } catch (e) {
       console.error('ReceiptPreview load error:', e);
@@ -93,6 +101,8 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleReprint = () => {
     // FR-PRT-01/03 — placeholder until thermal printer SDK is integrated (Section 7.2)
+    // When the SDK is wired up, printCurrency must be passed to the print job
+    // so the printed paper matches what's shown in this preview.
     Alert.alert(
       'Print',
       'Printing will be available once the printer SDK is integrated.',
@@ -104,6 +114,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       const tx = await getTransactionById(id);
       setReceipt(tx);
+      setPrintCurrency('primary');
     } catch (e) {
       console.error('Load receipt error:', e);
     } finally {
@@ -121,7 +132,24 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
     });
   };
 
-  const symbol = settings?.primary_currency_symbol ?? '$';
+  // Converts a primary-currency amount on THIS receipt using its own
+  // exchange_rate_snapshot — never the current live rate (FR-CUR-07).
+  const convert = (amount: number): number => {
+    if (printCurrency === 'primary' || !receipt?.exchange_rate_snapshot)
+      return amount;
+    return amount * receipt.exchange_rate_snapshot;
+  };
+
+  const canPrintSecondary =
+    !!receipt?.secondary_currency_code && !!receipt?.exchange_rate_snapshot;
+  const symbol =
+    printCurrency === 'primary'
+      ? settings?.primary_currency_symbol ?? '$'
+      : settings?.secondary_currency_symbol ?? '';
+  const currencyCode =
+    printCurrency === 'primary'
+      ? receipt?.primary_currency_code
+      : receipt?.secondary_currency_code;
 
   if (loading && !receipt) {
     return (
@@ -159,6 +187,51 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         ) : (
           <>
+            {/* Print currency toggle — client-requested addition */}
+            {canPrintSecondary && (
+              <View style={styles.card}>
+                <Text style={styles.toggleLabel}>Print currency</Text>
+                <View style={styles.currencyToggle}>
+                  <TouchableOpacity
+                    style={[
+                      styles.currencyOption,
+                      printCurrency === 'primary' &&
+                        styles.currencyOptionActive,
+                    ]}
+                    onPress={() => setPrintCurrency('primary')}
+                  >
+                    <Text
+                      style={[
+                        styles.currencyOptionText,
+                        printCurrency === 'primary' &&
+                          styles.currencyOptionTextActive,
+                      ]}
+                    >
+                      {receipt.primary_currency_code}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.currencyOption,
+                      printCurrency === 'secondary' &&
+                        styles.currencyOptionActive,
+                    ]}
+                    onPress={() => setPrintCurrency('secondary')}
+                  >
+                    <Text
+                      style={[
+                        styles.currencyOptionText,
+                        printCurrency === 'secondary' &&
+                          styles.currencyOptionTextActive,
+                      ]}
+                    >
+                      {receipt.secondary_currency_code}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {/* Receipt paper (FR-PRT-02, FR-PRT-05) */}
             <View style={styles.receipt}>
               <Text style={styles.rStore}>
@@ -169,6 +242,9 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                 {formatDateTime(receipt.created_at)}
                 {'\n'}
                 Transaction #TXN-{String(receipt.id).padStart(6, '0')}
+                {printCurrency === 'secondary'
+                  ? `\nPrinted in ${currencyCode}`
+                  : ''}
               </Text>
               <View style={styles.rDivider} />
 
@@ -181,7 +257,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                   <Text style={styles.rItemQty}>x{item.quantity}</Text>
                   <Text style={styles.rItemTotal}>
                     {symbol}
-                    {item.line_total.toFixed(2)}
+                    {convert(item.line_total).toFixed(2)}
                   </Text>
                 </View>
               ))}
@@ -191,7 +267,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                 <Text style={styles.rLabel}>Subtotal</Text>
                 <Text style={styles.rValue}>
                   {symbol}
-                  {receipt.total_amount.toFixed(2)}
+                  {convert(receipt.total_amount).toFixed(2)}
                 </Text>
               </View>
               {receipt.discount_amount > 0 && (
@@ -199,7 +275,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                   <Text style={styles.rLabel}>Discount</Text>
                   <Text style={styles.rDiscount}>
                     -{symbol}
-                    {receipt.discount_amount.toFixed(2)}
+                    {convert(receipt.discount_amount).toFixed(2)}
                   </Text>
                 </View>
               )}
@@ -207,33 +283,63 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                 <Text style={styles.rGrandLabel}>Total</Text>
                 <Text style={styles.rGrandValue}>
                   {symbol}
-                  {receipt.grand_total.toFixed(2)}
+                  {convert(receipt.grand_total).toFixed(2)}
                 </Text>
               </View>
-              {/* Secondary currency using snapshot rate, not live rate (FR-CUR-07) */}
+              {/* Always show the other currency as a secondary reference line,
+                  using the snapshot rate (FR-CUR-07) */}
               {receipt.secondary_currency_code &&
               receipt.exchange_rate_snapshot ? (
                 <Text style={styles.rSecondary}>
-                  {(
-                    receipt.grand_total * receipt.exchange_rate_snapshot
-                  ).toLocaleString()}{' '}
-                  {receipt.secondary_currency_code}
+                  {printCurrency === 'primary'
+                    ? `${(
+                        receipt.grand_total * receipt.exchange_rate_snapshot
+                      ).toLocaleString()} ${receipt.secondary_currency_code}`
+                    : `${
+                        settings?.primary_currency_symbol ?? '$'
+                      }${receipt.grand_total.toFixed(2)} ${
+                        receipt.primary_currency_code
+                      }`}
                 </Text>
               ) : null}
 
               <View style={styles.rDivider} />
-              <View style={styles.rTotalRow}>
-                <Text style={styles.rLabel}>Tendered</Text>
-                <Text style={styles.rValue}>
-                  {symbol}
-                  {receipt.amount_tendered.toFixed(2)}
-                </Text>
-              </View>
+              {/* Tendered breakdown — shows mixed-currency payment if applicable */}
+              {receipt.tendered_secondary > 0 ? (
+                <>
+                  <View style={styles.rTotalRow}>
+                    <Text style={styles.rLabel}>
+                      Paid in {receipt.primary_currency_code}
+                    </Text>
+                    <Text style={styles.rValue}>
+                      {settings?.primary_currency_symbol ?? '$'}
+                      {receipt.tendered_primary.toFixed(2)}
+                    </Text>
+                  </View>
+                  <View style={styles.rTotalRow}>
+                    <Text style={styles.rLabel}>
+                      Paid in {receipt.secondary_currency_code}
+                    </Text>
+                    <Text style={styles.rValue}>
+                      {settings?.secondary_currency_symbol ?? ''}
+                      {receipt.tendered_secondary.toFixed(2)}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.rTotalRow}>
+                  <Text style={styles.rLabel}>Tendered</Text>
+                  <Text style={styles.rValue}>
+                    {symbol}
+                    {convert(receipt.amount_tendered).toFixed(2)}
+                  </Text>
+                </View>
+              )}
               <View style={styles.rTotalRow}>
                 <Text style={styles.rLabel}>Change</Text>
                 <Text style={styles.rValue}>
                   {symbol}
-                  {receipt.change_due.toFixed(2)}
+                  {convert(receipt.change_due).toFixed(2)}
                 </Text>
               </View>
 
@@ -253,7 +359,10 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
 
             {/* Reprint (FR-PRT-03) */}
             <TouchableOpacity style={styles.reprintBtn} onPress={handleReprint}>
-              <Text style={styles.reprintBtnText}>🖨️ Reprint receipt</Text>
+              <Text style={styles.reprintBtnText}>
+                🖨️ Reprint receipt{' '}
+                {canPrintSecondary ? `(${currencyCode})` : ''}
+              </Text>
             </TouchableOpacity>
           </>
         )}
@@ -276,7 +385,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                     {formatDateTime(tx.created_at)}
                   </Text>
                   <Text style={styles.histTotal}>
-                    {symbol}
+                    {settings?.primary_currency_symbol ?? '$'}
                     {tx.grand_total.toFixed(2)}
                   </Text>
                   <TouchableOpacity
@@ -318,9 +427,30 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 0.5,
     borderColor: COLORS.border,
-    padding: 20,
-    alignItems: 'center',
+    padding: 12,
+    marginBottom: 12,
   },
+  toggleLabel: { fontSize: 11, color: COLORS.textSecondary, marginBottom: 8 },
+  currencyToggle: { flexDirection: 'row', gap: 8 },
+  currencyOption: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+  },
+  currencyOptionActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  currencyOptionText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  currencyOptionTextActive: { color: '#fff' },
   emptyText: { fontSize: 13, color: COLORS.textMuted },
   receipt: {
     backgroundColor: COLORS.white,

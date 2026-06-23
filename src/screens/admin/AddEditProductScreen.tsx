@@ -69,7 +69,7 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
   const [price, setPrice] = useState('');
   const [discountPrice, setDiscountPrice] = useState('');
   const [barcode, setBarcode] = useState('');
-  const [stockQty, setStockQty] = useState('0');
+  const [existingStockQty, setExistingStockQty] = useState(0);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   useEffect(() => {
@@ -91,7 +91,7 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
             setPrice(product.price.toString());
             setDiscountPrice(product.discount_price?.toString() ?? '');
             setBarcode(product.barcode ?? '');
-            setStockQty(product.stock_qty.toString());
+            setExistingStockQty(product.stock_qty);
           }
         }
       } catch (e) {
@@ -167,7 +167,7 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
           parsedDiscount,
           barcode.trim() || null,
           description.trim() || null,
-          parseInt(stockQty, 10) || 0,
+          existingStockQty, // stock is never edited here — only changed via Purchase Orders
         );
       } else {
         await createProduct(
@@ -177,7 +177,7 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
           parsedDiscount,
           barcode.trim() || null,
           description.trim() || null,
-          parseInt(stockQty, 10) || 0,
+          0, // new products always start with 0 stock — increase via Purchase Orders
         );
       }
       navigation.goBack();
@@ -339,21 +339,20 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
           </View>
         </View>
 
-        {/* Stock */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Stock</Text>
-          <View style={styles.field}>
-            <Text style={styles.label}>Stock quantity</Text>
-            <TextInput
-              style={styles.input}
-              value={stockQty}
-              onChangeText={setStockQty}
-              placeholder="0"
-              placeholderTextColor={COLORS.textMuted}
-              keyboardType="number-pad"
-            />
+        {/* Stock — read-only, only shown when editing an existing product.
+            Quantity can only increase via Purchase Orders (FR-PO-03). */}
+        {isEdit && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Stock</Text>
+            <View style={styles.stockInfo}>
+              <Text style={styles.stockInfoLabel}>Current stock quantity</Text>
+              <Text style={styles.stockInfoValue}>{existingStockQty}</Text>
+            </View>
+            <Text style={styles.stockInfoNote}>
+              Stock can only be increased through Purchase Orders.
+            </Text>
           </View>
-        </View>
+        )}
 
         {/* Actions */}
         <View style={styles.actionRow}>
@@ -479,6 +478,18 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F0F0F0',
   },
   pickerItemText: {fontSize: 12, color: COLORS.text},
+  stockInfo: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  stockInfoLabel: {fontSize: 11, color: COLORS.textSecondary},
+  stockInfoValue: {fontSize: 14, fontWeight: '600', color: COLORS.primary},
+  stockInfoNote: {fontSize: 10, color: COLORS.textMuted},
 });
 
 export default AddEditProductScreen;

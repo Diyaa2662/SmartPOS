@@ -14,9 +14,10 @@ export interface Category {
   updated_at: string;
 }
 
-// Category with its children (for 2-level tree display — FR-CAT-04)
+// Category with its children (unlimited nesting depth — FR-CAT-04, extended
+// per client request to support categories like Chips -> Chips Medium -> Doritos)
 export interface CategoryWithChildren extends Category {
-  children: Category[];
+  children: CategoryWithChildren[];
   item_count: number;
 }
 
@@ -49,6 +50,8 @@ export interface Transaction {
   grand_total: number;
   amount_tendered: number;
   change_due: number;
+  tendered_primary: number;    // amount paid in primary currency
+  tendered_secondary: number;  // amount paid in secondary currency
   primary_currency_code: string;
   secondary_currency_code: string | null;
   exchange_rate_snapshot: number | null; // FR-CUR-05

@@ -4,13 +4,20 @@
 // NOTE: All functions are async because op-sqlite's execute() returns a Promise
 // NOTE: result.rows is a plain array (Record<string, Scalar>[]) — use [i], not .item(i)
 
-import {getDatabase} from './database';
-import {Transaction, TransactionItem, TransactionWithItems, CartItem} from '../types';
-import {getAllSettings} from './settingsDAO';
+import { getDatabase } from './database';
+import {
+  Transaction,
+  TransactionItem,
+  TransactionWithItems,
+  CartItem,
+} from '../types';
+import { getAllSettings } from './settingsDAO';
 
 // ─── Get transaction by ID with items (for receipt — FR-PRT-02) ───────────────
 
-export const getTransactionById = async (id: number): Promise<TransactionWithItems | null> => {
+export const getTransactionById = async (
+  id: number,
+): Promise<TransactionWithItems | null> => {
   const db = getDatabase();
 
   const txResult = await db.execute(
@@ -37,7 +44,9 @@ export const getTransactionById = async (id: number): Promise<TransactionWithIte
 
 // ─── Get recent transactions (for receipt history — FR-PRT-03) ───────────────
 
-export const getRecentTransactions = async (limit: number = 20): Promise<Transaction[]> => {
+export const getRecentTransactions = async (
+  limit: number = 20,
+): Promise<Transaction[]> => {
   const db = getDatabase();
   const result = await db.execute(
     'SELECT * FROM transactions ORDER BY created_at DESC LIMIT ?;',
@@ -122,10 +131,12 @@ export const getTodaySummary = async (): Promise<{
      LIMIT 1;`,
   );
 
-  const best = bestResult.rows?.[0] as unknown as {
-    product_name: string;
-    total_qty: number;
-  } | undefined;
+  const best = bestResult.rows?.[0] as unknown as
+    | {
+        product_name: string;
+        total_qty: number;
+      }
+    | undefined;
 
   return {
     total_sales: summary?.total_sales ?? 0,
@@ -137,7 +148,9 @@ export const getTodaySummary = async (): Promise<{
 
 // ─── Get sales by day for chart (FR-DAS-02) ───────────────────────────────────
 
-export const getWeeklySales = async (): Promise<{date: string; total: number}[]> => {
+export const getWeeklySales = async (): Promise<
+  { date: string; total: number }[]
+> => {
   const db = getDatabase();
   const result = await db.execute(
     `SELECT date(created_at) as date, SUM(grand_total) as total
@@ -146,10 +159,10 @@ export const getWeeklySales = async (): Promise<{date: string; total: number}[]>
      GROUP BY date(created_at)
      ORDER BY date ASC;`,
   );
-  const rows: {date: string; total: number}[] = [];
+  const rows: { date: string; total: number }[] = [];
   if (!result.rows) return rows;
   for (let i = 0; i < result.rows.length; i++) {
-    rows.push(result.rows[i] as unknown as {date: string; total: number});
+    rows.push(result.rows[i] as unknown as { date: string; total: number });
   }
   return rows;
 };
@@ -160,7 +173,9 @@ export const getTopProducts = async (
   startDate: string,
   endDate: string,
   limit: number = 10,
-): Promise<{product_name: string; total_qty: number; total_revenue: number}[]> => {
+): Promise<
+  { product_name: string; total_qty: number; total_revenue: number }[]
+> => {
   const db = getDatabase();
   const result = await db.execute(
     `SELECT
@@ -175,10 +190,20 @@ export const getTopProducts = async (
      LIMIT ?;`,
     [startDate, endDate, limit],
   );
-  const rows: {product_name: string; total_qty: number; total_revenue: number}[] = [];
+  const rows: {
+    product_name: string;
+    total_qty: number;
+    total_revenue: number;
+  }[] = [];
   if (!result.rows) return rows;
   for (let i = 0; i < result.rows.length; i++) {
-    rows.push(result.rows[i] as unknown as {product_name: string; total_qty: number; total_revenue: number});
+    rows.push(
+      result.rows[i] as unknown as {
+        product_name: string;
+        total_qty: number;
+        total_revenue: number;
+      },
+    );
   }
   return rows;
 };
@@ -188,7 +213,7 @@ export const getTopProducts = async (
 export const getSalesByCategory = async (
   startDate: string,
   endDate: string,
-): Promise<{category_name: string; total_revenue: number}[]> => {
+): Promise<{ category_name: string; total_revenue: number }[]> => {
   const db = getDatabase();
   const result = await db.execute(
     `SELECT
@@ -203,15 +228,72 @@ export const getSalesByCategory = async (
      ORDER BY total_revenue DESC;`,
     [startDate, endDate],
   );
-  const rows: {category_name: string; total_revenue: number}[] = [];
+  const rows: { category_name: string; total_revenue: number }[] = [];
   if (!result.rows) return rows;
   for (let i = 0; i < result.rows.length; i++) {
-    rows.push(result.rows[i] as unknown as {category_name: string; total_revenue: number});
+    rows.push(
+      result.rows[i] as unknown as {
+        category_name: string;
+        total_revenue: number;
+      },
+    );
+  }
+  return rows;
+};
+
+// ─── Get detailed category sales with each line's transaction rate snapshot ──
+// Used by ReportsScreen's currency toggle (client-requested addition).
+// Returns one row per (transaction, category) combination, each carrying its
+// OWN exchange_rate_snapshot, so the UI can convert every line using the rate
+// that was active at the time of that specific sale (FR-CUR-06) instead of
+// applying today's live rate to a pre-aggregated total.
+
+export const getCategorySalesDetailed = async (
+  startDate: string,
+  endDate: string,
+): Promise<
+  {
+    category_name: string;
+    line_total: number;
+    exchange_rate_snapshot: number | null;
+  }[]
+> => {
+  const db = getDatabase();
+  const result = await db.execute(
+    `SELECT
+       c.name as category_name,
+       ti.line_total as line_total,
+       t.exchange_rate_snapshot as exchange_rate_snapshot
+     FROM transaction_items ti
+     JOIN transactions t ON t.id = ti.transaction_id
+     JOIN products p ON p.id = ti.product_id
+     JOIN categories c ON c.id = p.category_id
+     WHERE date(t.created_at) >= date(?) AND date(t.created_at) <= date(?);`,
+    [startDate, endDate],
+  );
+  const rows: {
+    category_name: string;
+    line_total: number;
+    exchange_rate_snapshot: number | null;
+  }[] = [];
+  if (!result.rows) return rows;
+  for (let i = 0; i < result.rows.length; i++) {
+    rows.push(
+      result.rows[i] as unknown as {
+        category_name: string;
+        line_total: number;
+        exchange_rate_snapshot: number | null;
+      },
+    );
   }
   return rows;
 };
 
 // ─── Save completed transaction (FR-SAL-10, FR-CUR-05) ───────────────────────
+// tenderedPrimary / tenderedSecondary: client-requested mixed-currency payment.
+// For a single-currency sale, pass the full amount in tenderedPrimary and 0
+// for tenderedSecondary (or vice-versa) — amount_tendered always stores the
+// combined total expressed in primary currency.
 
 export const saveTransaction = async (
   cartItems: CartItem[],
@@ -220,6 +302,8 @@ export const saveTransaction = async (
   grand_total: number,
   amount_tendered: number,
   change_due: number,
+  tenderedPrimary: number = amount_tendered,
+  tenderedSecondary: number = 0,
 ): Promise<number> => {
   const db = getDatabase();
   const settings = await getAllSettings();
@@ -231,14 +315,17 @@ export const saveTransaction = async (
     const txResult = await tx.execute(
       `INSERT INTO transactions
         (total_amount, discount_amount, grand_total, amount_tendered, change_due,
+         tendered_primary, tendered_secondary,
          primary_currency_code, secondary_currency_code, exchange_rate_snapshot)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         subtotal,
         discount_amount,
         grand_total,
         amount_tendered,
         change_due,
+        tenderedPrimary,
+        tenderedSecondary,
         settings.primary_currency_code,
         settings.secondary_currency_code,
         settings.exchange_rate,

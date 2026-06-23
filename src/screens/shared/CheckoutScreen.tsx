@@ -3,6 +3,9 @@
 // SmartPOS - Checkout / Payment Screen
 // Based on SRS Section 3.3 (FR-SAL) and Section 8
 // Accessible by both Admin and Cashier roles
+// Mixed-currency payment added per client request: the customer can pay part
+// of the bill in the primary currency and the rest in the secondary currency,
+// converted using the exchange rate configured in Settings.
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -34,6 +37,9 @@ type Props = {
   route: RouteProp<AdminStackParamList | CashierStackParamList, 'Checkout'>;
 };
 
+type PaymentMode = 'single' | 'mixed';
+type ActiveField = 'primary' | 'secondary';
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const COLORS = {
@@ -60,7 +66,10 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [amountTendered, setAmountTendered] = useState('');
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>('single');
+  const [amountPrimary, setAmountPrimary] = useState('');
+  const [amountSecondary, setAmountSecondary] = useState('');
+  const [activeField, setActiveField] = useState<ActiveField>('primary');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -68,16 +77,44 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
   }, []);
 
   const symbol = settings?.primary_currency_symbol ?? '$';
-  const tendered = parseFloat(amountTendered) || 0;
-  const changeDue = tendered - grandTotal;
+  const secSymbol = settings?.secondary_currency_symbol ?? '';
+  const rate = settings?.exchange_rate ?? 1;
+  const hasSecondary = !!settings?.secondary_currency_code;
+
+  const tenderedPrimary = parseFloat(amountPrimary) || 0;
+  const tenderedSecondary = parseFloat(amountSecondary) || 0;
+
+  // Combined amount tendered, expressed in primary currency (FR-CUR-05 style snapshot use)
+  const tenderedSecondaryInPrimary = rate > 0 ? tenderedSecondary / rate : 0;
+  const combinedTendered =
+    paymentMode === 'mixed'
+      ? tenderedPrimary + tenderedSecondaryInPrimary
+      : tenderedPrimary;
+
+  const changeDue = combinedTendered - grandTotal;
 
   const handleKeyPress = (key: string) => {
-    if (key === '.' && amountTendered.includes('.')) return;
-    setAmountTendered(prev => prev + key);
+    const setValue =
+      activeField === 'primary' ? setAmountPrimary : setAmountSecondary;
+    const currentValue =
+      activeField === 'primary' ? amountPrimary : amountSecondary;
+    if (key === '.' && currentValue.includes('.')) return;
+    setValue(currentValue + key);
   };
 
   const handleDelete = () => {
-    setAmountTendered(prev => prev.slice(0, -1));
+    const setValue =
+      activeField === 'primary' ? setAmountPrimary : setAmountSecondary;
+    const currentValue =
+      activeField === 'primary' ? amountPrimary : amountSecondary;
+    setValue(currentValue.slice(0, -1));
+  };
+
+  const handlePaymentModeChange = (mode: PaymentMode) => {
+    setPaymentMode(mode);
+    setAmountPrimary('');
+    setAmountSecondary('');
+    setActiveField('primary');
   };
 
   const handleCancel = () => {
@@ -88,7 +125,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleConfirm = async () => {
     if (saving) return;
 
-    if (tendered < grandTotal) {
+    if (combinedTendered < grandTotal) {
       Alert.alert(
         'Insufficient amount',
         'Amount tendered is less than the total due.',
@@ -104,8 +141,10 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         subtotal,
         discountAmount,
         grandTotal,
-        tendered,
+        combinedTendered,
         changeDue,
+        paymentMode === 'mixed' ? tenderedPrimary : combinedTendered,
+        paymentMode === 'mixed' ? tenderedSecondary : 0,
       );
 
       // FR-PRT-01 — auto-print receipt after sale completes
@@ -181,26 +220,127 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
               {grandTotal.toFixed(2)}
             </Text>
           </View>
-          {settings?.secondary_currency_code ? (
+          {hasSecondary ? (
             <Text style={styles.tSecondary}>
-              {(grandTotal * settings.exchange_rate).toLocaleString()}{' '}
-              {settings.secondary_currency_symbol}
+              {(grandTotal * rate).toLocaleString()} {secSymbol}
             </Text>
           ) : null}
         </View>
 
+        {/* Payment mode toggle — client-requested addition (only when a secondary currency is configured) */}
+        {hasSecondary && (
+          <View style={styles.card}>
+            <Text style={styles.inputLabel}>Payment method</Text>
+            <View style={styles.modeToggle}>
+              <TouchableOpacity
+                style={[
+                  styles.modeOption,
+                  paymentMode === 'single' && styles.modeOptionActive,
+                ]}
+                onPress={() => handlePaymentModeChange('single')}
+              >
+                <Text
+                  style={[
+                    styles.modeOptionText,
+                    paymentMode === 'single' && styles.modeOptionTextActive,
+                  ]}
+                >
+                  Single currency
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modeOption,
+                  paymentMode === 'mixed' && styles.modeOptionActive,
+                ]}
+                onPress={() => handlePaymentModeChange('mixed')}
+              >
+                <Text
+                  style={[
+                    styles.modeOptionText,
+                    paymentMode === 'mixed' && styles.modeOptionTextActive,
+                  ]}
+                >
+                  Mixed currency
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Amount tendered / Change (FR-SAL-09) */}
         <View style={styles.card}>
-          <Text style={styles.inputLabel}>Amount tendered</Text>
-          <View style={styles.inputBox}>
-            <Text style={styles.inputVal}>
-              {symbol}
-              {amountTendered || '0'}
-            </Text>
-            <Text style={styles.inputCurrency}>
-              {settings?.primary_currency_code ?? 'USD'}
-            </Text>
-          </View>
+          {paymentMode === 'single' ? (
+            <>
+              <Text style={styles.inputLabel}>Amount tendered</Text>
+              <TouchableOpacity
+                style={[
+                  styles.inputBox,
+                  activeField === 'primary' && styles.inputBoxActive,
+                ]}
+                onPress={() => setActiveField('primary')}
+              >
+                <Text style={styles.inputVal}>
+                  {symbol}
+                  {amountPrimary || '0'}
+                </Text>
+                <Text style={styles.inputCurrency}>
+                  {settings?.primary_currency_code ?? 'USD'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.inputLabel}>
+                Amount in {settings?.primary_currency_code}
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.inputBox,
+                  activeField === 'primary' && styles.inputBoxActive,
+                ]}
+                onPress={() => setActiveField('primary')}
+              >
+                <Text style={styles.inputVal}>
+                  {symbol}
+                  {amountPrimary || '0'}
+                </Text>
+                <Text style={styles.inputCurrency}>
+                  {settings?.primary_currency_code}
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={[styles.inputLabel, { marginTop: 8 }]}>
+                Amount in {settings?.secondary_currency_code}
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.inputBox,
+                  activeField === 'secondary' && styles.inputBoxActive,
+                ]}
+                onPress={() => setActiveField('secondary')}
+              >
+                <Text style={styles.inputVal}>
+                  {secSymbol}
+                  {amountSecondary || '0'}
+                </Text>
+                <Text style={styles.inputCurrency}>
+                  {settings?.secondary_currency_code}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.combinedBox}>
+                <Text style={styles.combinedLabel}>
+                  Combined (in {settings?.primary_currency_code})
+                </Text>
+                <Text style={styles.combinedValue}>
+                  {symbol}
+                  {combinedTendered.toFixed(2)}
+                </Text>
+              </View>
+            </>
+          )}
+
           <View style={styles.changeBox}>
             <Text style={styles.changeLabel}>💰 Change due</Text>
             <Text style={styles.changeVal}>
@@ -210,7 +350,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Numpad */}
+        {/* Numpad — types into whichever field is currently active */}
         <View style={styles.numpad}>
           {numpadKeys.map(key => (
             <TouchableOpacity
@@ -323,10 +463,32 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: 2,
   },
+  modeToggle: { flexDirection: 'row', gap: 8 },
+  modeOption: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+  },
+  modeOptionActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  modeOptionText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  modeOptionTextActive: { color: '#fff' },
   inputLabel: { fontSize: 11, color: COLORS.textSecondary, marginBottom: 6 },
   inputBox: {
     backgroundColor: '#F3F4F6',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
     paddingHorizontal: 12,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -334,8 +496,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  inputBoxActive: { borderColor: COLORS.primary },
   inputVal: { fontSize: 18, fontWeight: '500', color: COLORS.text },
   inputCurrency: { fontSize: 11, color: COLORS.textMuted },
+  combinedBox: {
+    backgroundColor: '#EEF3FA',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  combinedLabel: { fontSize: 11, color: COLORS.primary },
+  combinedValue: { fontSize: 14, fontWeight: '600', color: COLORS.primary },
   changeBox: {
     backgroundColor: COLORS.greenBg,
     borderRadius: 8,

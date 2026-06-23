@@ -14,7 +14,7 @@ export const CREATE_CATEGORIES_TABLE = `
     UNIQUE(name, parent_id)
   );
 `;
-// parent_id NULL = root category. Max 2 levels of nesting enforced by app logic.
+// parent_id NULL = root category.
 
 export const CREATE_PRODUCTS_TABLE = `
   CREATE TABLE IF NOT EXISTS products (
@@ -39,6 +39,8 @@ export const CREATE_TRANSACTIONS_TABLE = `
     grand_total              REAL NOT NULL,
     amount_tendered          REAL NOT NULL,
     change_due               REAL NOT NULL,
+    tendered_primary         REAL NOT NULL DEFAULT 0,
+    tendered_secondary       REAL NOT NULL DEFAULT 0,
     primary_currency_code    TEXT NOT NULL,
     secondary_currency_code  TEXT,
     exchange_rate_snapshot   REAL,
@@ -47,6 +49,10 @@ export const CREATE_TRANSACTIONS_TABLE = `
   );
 `;
 // exchange_rate_snapshot: 1 primary = N secondary at sale time (FR-CUR-05)
+// tendered_primary / tendered_secondary: client-requested mixed-currency payment —
+// amount_tendered remains the combined total expressed in primary currency
+// (tendered_secondary converted using exchange_rate_snapshot), so existing
+// reporting/receipt logic that reads amount_tendered keeps working unchanged.
 
 export const CREATE_TRANSACTION_ITEMS_TABLE = `
   CREATE TABLE IF NOT EXISTS transaction_items (

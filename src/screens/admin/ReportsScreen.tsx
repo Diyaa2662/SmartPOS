@@ -2,6 +2,9 @@
 // src/screens/admin/ReportsScreen.tsx
 // SmartPOS - Reports Screen
 // Based on SRS Section 3.6 (FR-RPT) and Section 8
+// Currency display toggle added per client request — uses each transaction's
+// own exchange_rate_snapshot (FR-CUR-06) rather than the current live rate,
+// so historical totals stay accurate regardless of rate changes since the sale.
 
 import React, { useState } from 'react';
 import {
@@ -19,17 +22,18 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AdminStackParamList } from '../../navigation/AppNavigator';
 import {
   getTransactionsByDateRange,
-  getTopProducts,
-  getSalesByCategory,
+  getCategorySalesDetailed,
 } from '../../database/transactionDAO';
 import { getAllSettings } from '../../database/settingsDAO';
-import { AppSettings } from '../../types';
+import { AppSettings, TransactionWithItems } from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Props = {
   navigation: NativeStackNavigationProp<AdminStackParamList, 'Reports'>;
 };
+
+type DisplayCurrency = 'primary' | 'secondary';
 
 type ReportSummary = {
   total_revenue: number;
@@ -61,6 +65,18 @@ const CATEGORY_COLORS = ['#1A56A0', '#BA7517', '#0F6E56', '#A0522D', '#7B2D8B'];
 
 const formatDateInput = (d: Date) => d.toISOString().split('T')[0];
 
+// Converts a primary-currency amount into the secondary currency using the
+// exchange rate that was active AT THE TIME of that specific transaction
+// (FR-CUR-06) — never the current live rate.
+const toDisplayAmount = (
+  amount: number,
+  rateSnapshot: number | null,
+  displayCurrency: DisplayCurrency,
+): number => {
+  if (displayCurrency === 'primary' || !rateSnapshot) return amount;
+  return amount * rateSnapshot;
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const ReportsScreen: React.FC<Props> = ({ navigation }) => {
@@ -72,10 +88,17 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
   const [endDate, setEndDate] = useState(formatDateInput(today));
   const [loading, setLoading] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [displayCurrency, setDisplayCurrency] =
+    useState<DisplayCurrency>('primary');
 
-  const [summary, setSummary] = useState<ReportSummary | null>(null);
-  const [categorySales, setCategorySales] = useState<CategorySales[]>([]);
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [transactions, setTransactions] = useState<TransactionWithItems[]>([]);
+  const [categoryRows, setCategoryRows] = useState<
+    {
+      category_name: string;
+      line_total: number;
+      exchange_rate_snapshot: number | null;
+    }[]
+  >([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
 
   const handleGenerate = async () => {
@@ -85,48 +108,13 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
     }
     setLoading(true);
     try {
-      const [transactions, categories, products, appSettings] =
-        await Promise.all([
-          getTransactionsByDateRange(startDate, endDate),
-          getSalesByCategory(startDate, endDate),
-          getTopProducts(startDate, endDate, 10),
-          getAllSettings(),
-        ]);
-
-      if (transactions.length === 0) {
-        // FR-RPT empty state — "No sales found for this period"
-        setSummary({
-          total_revenue: 0,
-          total_transactions: 0,
-          avg_transaction: 0,
-          total_discount: 0,
-        });
-        setCategorySales([]);
-        setTopProducts([]);
-        setSettings(appSettings);
-        setHasGenerated(true);
-        setLoading(false);
-        return;
-      }
-
-      const totalRevenue = transactions.reduce(
-        (sum, t) => sum + t.grand_total,
-        0,
-      );
-      const totalDiscount = transactions.reduce(
-        (sum, t) => sum + t.discount_amount,
-        0,
-      );
-      const avgTransaction = totalRevenue / transactions.length;
-
-      setSummary({
-        total_revenue: totalRevenue,
-        total_transactions: transactions.length,
-        avg_transaction: avgTransaction,
-        total_discount: totalDiscount,
-      });
-      setCategorySales(categories);
-      setTopProducts(products);
+      const [txData, catRows, appSettings] = await Promise.all([
+        getTransactionsByDateRange(startDate, endDate),
+        getCategorySalesDetailed(startDate, endDate),
+        getAllSettings(),
+      ]);
+      setTransactions(txData);
+      setCategoryRows(catRows);
       setSettings(appSettings);
       setHasGenerated(true);
     } catch (e) {
@@ -153,11 +141,99 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
-  const symbol = settings?.primary_currency_symbol ?? '$';
+  // ─── Derive summary / category / top-products from raw transactions,
+  //     converting each transaction with ITS OWN rate snapshot (FR-CUR-06) ──
+
+  const summary: ReportSummary = (() => {
+    if (transactions.length === 0) {
+      return {
+        total_revenue: 0,
+        total_transactions: 0,
+        avg_transaction: 0,
+        total_discount: 0,
+      };
+    }
+    const total_revenue = transactions.reduce(
+      (sum, t) =>
+        sum +
+        toDisplayAmount(
+          t.grand_total,
+          t.exchange_rate_snapshot,
+          displayCurrency,
+        ),
+      0,
+    );
+    const total_discount = transactions.reduce(
+      (sum, t) =>
+        sum +
+        toDisplayAmount(
+          t.discount_amount,
+          t.exchange_rate_snapshot,
+          displayCurrency,
+        ),
+      0,
+    );
+    return {
+      total_revenue,
+      total_transactions: transactions.length,
+      avg_transaction: total_revenue / transactions.length,
+      total_discount,
+    };
+  })();
+
+  const categorySales: CategorySales[] = (() => {
+    const map = new Map<string, number>();
+    for (const row of categoryRows) {
+      const converted = toDisplayAmount(
+        row.line_total,
+        row.exchange_rate_snapshot,
+        displayCurrency,
+      );
+      map.set(row.category_name, (map.get(row.category_name) ?? 0) + converted);
+    }
+    return Array.from(map.entries())
+      .map(([category_name, total_revenue]) => ({
+        category_name,
+        total_revenue,
+      }))
+      .sort((a, b) => b.total_revenue - a.total_revenue);
+  })();
+
+  const topProducts: TopProduct[] = (() => {
+    const map = new Map<string, { qty: number; revenue: number }>();
+    for (const t of transactions) {
+      for (const item of t.items) {
+        const existing = map.get(item.product_name) ?? { qty: 0, revenue: 0 };
+        const converted = toDisplayAmount(
+          item.line_total,
+          t.exchange_rate_snapshot,
+          displayCurrency,
+        );
+        map.set(item.product_name, {
+          qty: existing.qty + item.quantity,
+          revenue: existing.revenue + converted,
+        });
+      }
+    }
+    return Array.from(map.entries())
+      .map(([product_name, v]) => ({
+        product_name,
+        total_qty: v.qty,
+        total_revenue: v.revenue,
+      }))
+      .sort((a, b) => b.total_revenue - a.total_revenue)
+      .slice(0, 10);
+  })();
+
+  const symbol =
+    displayCurrency === 'primary'
+      ? settings?.primary_currency_symbol ?? '$'
+      : settings?.secondary_currency_symbol ?? '';
   const maxCategoryRevenue = Math.max(
     ...categorySales.map(c => c.total_revenue),
     1,
   );
+  const canShowSecondary = !!settings?.secondary_currency_code;
 
   return (
     <View style={styles.container}>
@@ -210,7 +286,55 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {hasGenerated && summary && (
+        {/* Currency display toggle — client-requested addition */}
+        {hasGenerated && canShowSecondary && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Display currency</Text>
+            <View style={styles.currencyToggle}>
+              <TouchableOpacity
+                style={[
+                  styles.currencyOption,
+                  displayCurrency === 'primary' && styles.currencyOptionActive,
+                ]}
+                onPress={() => setDisplayCurrency('primary')}
+              >
+                <Text
+                  style={[
+                    styles.currencyOptionText,
+                    displayCurrency === 'primary' &&
+                      styles.currencyOptionTextActive,
+                  ]}
+                >
+                  {settings?.primary_currency_code}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.currencyOption,
+                  displayCurrency === 'secondary' &&
+                    styles.currencyOptionActive,
+                ]}
+                onPress={() => setDisplayCurrency('secondary')}
+              >
+                <Text
+                  style={[
+                    styles.currencyOptionText,
+                    displayCurrency === 'secondary' &&
+                      styles.currencyOptionTextActive,
+                  ]}
+                >
+                  {settings?.secondary_currency_code}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.currencyNote}>
+              Each sale is converted using the exchange rate active at the time
+              of that sale.
+            </Text>
+          </View>
+        )}
+
+        {hasGenerated && (
           <>
             {summary.total_transactions === 0 ? (
               <View style={styles.card}>
@@ -407,6 +531,27 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   emptyTextSmall: { fontSize: 11, color: COLORS.textMuted },
+  currencyToggle: { flexDirection: 'row', gap: 8 },
+  currencyOption: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: '#E0E0E0',
+    backgroundColor: COLORS.white,
+  },
+  currencyOptionActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  currencyOptionText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  currencyOptionTextActive: { color: '#fff' },
+  currencyNote: { fontSize: 9, color: COLORS.textMuted },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   kpi: {
     width: '48%',
