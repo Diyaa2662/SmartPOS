@@ -16,6 +16,7 @@
     "@react-navigation/native-stack": "^7.17.5",
     "react": "19.2.3",
     "react-native": "0.86.0",
+    "react-native-nyx-printer": "github:mrkpatchaa/react-native-nyx-printer",
     "react-native-safe-area-context": "^5.8.0",
     "react-native-screens": "^4.25.2"
   },
