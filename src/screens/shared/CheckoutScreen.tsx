@@ -23,7 +23,10 @@ import {
   AdminStackParamList,
   CashierStackParamList,
 } from '../../navigation/AppNavigator';
-import { saveTransaction } from '../../database/transactionDAO';
+import {
+  saveTransaction,
+  getTransactionById,
+} from '../../database/transactionDAO';
 import { getAllSettings } from '../../database/settingsDAO';
 import { CartItem, AppSettings } from '../../types';
 
@@ -147,8 +150,20 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         paymentMode === 'mixed' ? tenderedSecondary : 0,
       );
 
-      // FR-PRT-01 — auto-print receipt after sale completes
-      // Printing integration pending hardware SDK (Section 7.2); navigate to preview for now
+      // FR-PRT-01 — auto print after sale
+      try {
+        const tx = await getTransactionById(transactionId);
+        if (tx) {
+          const { printReceipt } = await import('../../utils/printerService');
+          await printReceipt(tx, settings!, true);
+        }
+      } catch (e: any) {
+        Alert.alert(
+          'Print Error',
+          `${e?.message ?? 'Unknown error'}\n\nCode: ${e?.code ?? 'none'}`,
+        );
+      }
+
       navigation.replace('ReceiptPreview' as any, { transactionId });
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'Could not complete the sale.');

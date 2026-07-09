@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-native/no-inline-styles */
 // src/screens/shared/ReceiptPreviewScreen.tsx
 // SmartPOS - Receipt Preview Screen
@@ -99,14 +100,17 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
     loadData();
   }, [loadData]);
 
-  const handleReprint = () => {
-    // FR-PRT-01/03 — placeholder until thermal printer SDK is integrated (Section 7.2)
-    // When the SDK is wired up, printCurrency must be passed to the print job
-    // so the printed paper matches what's shown in this preview.
-    Alert.alert(
-      'Print',
-      'Printing will be available once the printer SDK is integrated.',
-    );
+  const handleReprint = async () => {
+    if (!receipt || !settings) return;
+    try {
+      const { printReceipt } = await import('../../utils/printerService');
+      await printReceipt(receipt, settings, printCurrency === 'primary');
+    } catch (e) {
+      Alert.alert(
+        'Print Error',
+        'Could not print receipt. Make sure printer is ready.',
+      );
+    }
   };
 
   const handleSelectHistory = async (id: number) => {
