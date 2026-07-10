@@ -122,7 +122,8 @@ const ProductListScreen: React.FC<Props> = ({ navigation }) => {
     } catch (e: any) {
       Alert.alert(
         'Print Error',
-        e?.message || 'Could not print the barcode label. Please check the printer.',
+        e?.message ||
+          'Could not print the barcode label. Please check the printer.',
       );
     }
   };
