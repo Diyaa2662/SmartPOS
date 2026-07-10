@@ -97,8 +97,10 @@ export const printReceipt = async (
   await print('Items', BOLD);
   for (const item of transaction.items) {
     const lineTotal = formatAmount(item.line_total, settings, usePrimary);
-    await print(`${item.product_name}`, NORMAL);
-    await print(`  x${item.quantity}   ${lineTotal}`, NORMAL);
+    const itemLine = `${item.product_name.substring(0, 20).padEnd(20)} x${
+      item.quantity
+    } ${lineTotal}`;
+    await print(itemLine, NORMAL);
   }
   await print(DIVIDER, SMALL_CENTER);
 
@@ -199,7 +201,7 @@ export const printReceipt = async (
   );
 
   // Feed paper at end
-  await PrinterModule.paperOut(60);
+  await PrinterModule.paperOut(180);
 };
 
 // ─── Print product barcode label (FR-PRD-07, FR-PRT-04) ──────────────────────

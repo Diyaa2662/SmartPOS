@@ -2,7 +2,7 @@
 // SmartPOS - Product List Screen
 // Based on SRS Section 3.2 (FR-PRD) and Section 8
 
-import React, {useEffect, useState, useCallback} from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,11 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {AdminStackParamList} from '../../navigation/AppNavigator';
-import {getAllProducts, deleteProduct} from '../../database/productDAO';
-import {getAllCategoriesFlat} from '../../database/categoryDAO';
-import {ProductWithCategory, Category} from '../../types';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { AdminStackParamList } from '../../navigation/AppNavigator';
+import { getAllProducts, deleteProduct } from '../../database/productDAO';
+import { getAllCategoriesFlat } from '../../database/categoryDAO';
+import { ProductWithCategory, Category } from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,11 +44,13 @@ const COLORS = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const ProductListScreen: React.FC<Props> = ({navigation}) => {
+const ProductListScreen: React.FC<Props> = ({ navigation }) => {
   const [products, setProducts] = useState<ProductWithCategory[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<number | undefined>(undefined);
+  const [selectedCategory, setSelectedCategory] = useState<number | undefined>(
+    undefined,
+  );
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -86,7 +88,7 @@ const ProductListScreen: React.FC<Props> = ({navigation}) => {
       'Delete product',
       `Are you sure you want to delete "${product.name}"?`,
       [
-        {text: 'Cancel', style: 'cancel'},
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
@@ -94,7 +96,7 @@ const ProductListScreen: React.FC<Props> = ({navigation}) => {
             try {
               await deleteProduct(product.id);
               await loadData();
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (e) {
               Alert.alert('Error', 'Could not delete product.');
             }
@@ -105,13 +107,16 @@ const ProductListScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const getEffectivePrice = (product: ProductWithCategory) => {
-    if (product.discount_price !== null && product.discount_price < product.price) {
+    if (
+      product.discount_price !== null &&
+      product.discount_price < product.price
+    ) {
       return product.discount_price;
     }
     return product.price;
   };
 
-  const renderProduct = ({item}: {item: ProductWithCategory}) => (
+  const renderProduct = ({ item }: { item: ProductWithCategory }) => (
     <View style={styles.productRow}>
       <View style={styles.productIcon}>
         <Text style={styles.productIconText}>📦</Text>
@@ -128,7 +133,8 @@ const ProductListScreen: React.FC<Props> = ({navigation}) => {
           style={[
             styles.productStock,
             item.stock_qty <= 5 ? styles.stockLow : styles.stockOk,
-          ]}>
+          ]}
+        >
           Stock: {item.stock_qty}
           {item.stock_qty <= 5 ? ' ⚠️' : ''}
         </Text>
@@ -142,13 +148,15 @@ const ProductListScreen: React.FC<Props> = ({navigation}) => {
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() =>
-              navigation.navigate('AddEditProduct', {productId: item.id})
-            }>
+              navigation.navigate('AddEditProduct', { productId: item.id })
+            }
+          >
             <Text style={styles.editIcon}>✏️</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, styles.deleteBtn]}
-            onPress={() => handleDelete(item)}>
+            onPress={() => handleDelete(item)}
+          >
             <Text style={styles.deleteIcon}>🗑️</Text>
           </TouchableOpacity>
         </View>
@@ -170,7 +178,8 @@ const ProductListScreen: React.FC<Props> = ({navigation}) => {
         </View>
         <TouchableOpacity
           style={styles.addBtn}
-          onPress={() => navigation.navigate('AddEditProduct', {})}>
+          onPress={() => navigation.navigate('AddEditProduct', {})}
+        >
           <Text style={styles.addBtnText}>+ Add new</Text>
         </TouchableOpacity>
       </View>
@@ -192,22 +201,36 @@ const ProductListScreen: React.FC<Props> = ({navigation}) => {
       {/* Category Filter (FR-PRD-04) */}
       <View style={styles.filterRow}>
         <TouchableOpacity
-          style={[styles.pill, selectedCategory === undefined && styles.pillActive]}
-          onPress={() => setSelectedCategory(undefined)}>
-          <Text style={[styles.pillText, selectedCategory === undefined && styles.pillTextActive]}>
+          style={[
+            styles.pill,
+            selectedCategory === undefined && styles.pillActive,
+          ]}
+          onPress={() => setSelectedCategory(undefined)}
+        >
+          <Text
+            style={[
+              styles.pillText,
+              selectedCategory === undefined && styles.pillTextActive,
+            ]}
+          >
             All
           </Text>
         </TouchableOpacity>
         {categories.map(cat => (
           <TouchableOpacity
             key={cat.id}
-            style={[styles.pill, selectedCategory === cat.id && styles.pillActive]}
-            onPress={() => setSelectedCategory(cat.id)}>
+            style={[
+              styles.pill,
+              selectedCategory === cat.id && styles.pillActive,
+            ]}
+            onPress={() => setSelectedCategory(cat.id)}
+          >
             <Text
               style={[
                 styles.pillText,
                 selectedCategory === cat.id && styles.pillTextActive,
-              ]}>
+              ]}
+            >
               {cat.name}
             </Text>
           </TouchableOpacity>
@@ -234,7 +257,7 @@ const ProductListScreen: React.FC<Props> = ({navigation}) => {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: COLORS.background},
+  container: { flex: 1, backgroundColor: COLORS.background },
   topbar: {
     backgroundColor: COLORS.primary,
     flexDirection: 'row',
@@ -243,16 +266,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  topbarLeft: {flexDirection: 'row', alignItems: 'center', gap: 6},
-  backBtn: {color: '#fff', fontSize: 28, lineHeight: 32},
-  topbarTitle: {color: '#fff', fontSize: 16, fontWeight: '500'},
+  topbarLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  backBtn: { color: '#fff', fontSize: 28, lineHeight: 32 },
+  topbarTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   addBtn: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  addBtnText: {color: '#fff', fontSize: 12},
+  addBtnText: { color: '#fff', fontSize: 12 },
   searchRow: {
     backgroundColor: COLORS.white,
     borderBottomWidth: 0.5,
@@ -268,8 +291,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     gap: 6,
   },
-  searchIcon: {fontSize: 14},
-  searchInput: {flex: 1, fontSize: 12, color: COLORS.text},
+  searchIcon: { fontSize: 14 },
+  searchInput: { flex: 1, fontSize: 12, color: COLORS.text },
   filterRow: {
     flexDirection: 'row',
     gap: 6,
@@ -287,10 +310,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     backgroundColor: COLORS.white,
   },
-  pillActive: {backgroundColor: COLORS.primary, borderColor: COLORS.primary},
-  pillText: {fontSize: 11, color: '#555'},
-  pillTextActive: {color: '#fff'},
-  listContent: {paddingBottom: 20},
+  pillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  pillText: { fontSize: 11, color: '#555' },
+  pillTextActive: { color: '#fff' },
+  listContent: { paddingBottom: 20 },
   emptyText: {
     textAlign: 'center',
     color: COLORS.textMuted,
@@ -314,19 +337,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  productIconText: {fontSize: 16},
-  productInfo: {flex: 1},
-  productName: {fontSize: 12, fontWeight: '500', color: COLORS.textSecondary},
-  productMeta: {flexDirection: 'row', gap: 8, marginTop: 2},
-  productCat: {fontSize: 10, color: COLORS.textMuted},
-  productBarcode: {fontSize: 10, color: '#CCC'},
-  productStock: {fontSize: 10, marginTop: 2},
-  stockOk: {color: COLORS.stockOk},
-  stockLow: {color: COLORS.stockLow},
-  productRight: {alignItems: 'flex-end', gap: 4},
-  priceOld: {fontSize: 10, color: '#BBB', textDecorationLine: 'line-through'},
-  price: {fontSize: 13, fontWeight: '500', color: COLORS.primary},
-  rowActions: {flexDirection: 'row', gap: 4},
+  productIconText: { fontSize: 16 },
+  productInfo: { flex: 1 },
+  productName: { fontSize: 12, fontWeight: '500', color: COLORS.textSecondary },
+  productMeta: { flexDirection: 'row', gap: 8, marginTop: 2 },
+  productCat: { fontSize: 10, color: COLORS.textMuted },
+  productBarcode: { fontSize: 10, color: '#CCC' },
+  productStock: { fontSize: 10, marginTop: 2 },
+  stockOk: { color: COLORS.stockOk },
+  stockLow: { color: COLORS.stockLow },
+  productRight: { alignItems: 'flex-end', gap: 4 },
+  priceOld: { fontSize: 10, color: '#BBB', textDecorationLine: 'line-through' },
+  price: { fontSize: 13, fontWeight: '500', color: COLORS.primary },
+  rowActions: { flexDirection: 'row', gap: 4 },
   actionBtn: {
     width: 28,
     height: 28,
@@ -337,9 +360,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deleteBtn: {borderColor: '#FFCDD2', backgroundColor: '#FFF5F5'},
-  editIcon: {fontSize: 13},
-  deleteIcon: {fontSize: 13},
+  deleteBtn: { borderColor: '#FFCDD2', backgroundColor: '#FFF5F5' },
+  editIcon: { fontSize: 13 },
+  deleteIcon: { fontSize: 13 },
 });
 
 export default ProductListScreen;
