@@ -2,7 +2,7 @@
 // SmartPOS - Purchase Orders History Screen
 // Based on SRS Section 3.7 (FR-PO) and Section 8
 
-import React, {useEffect, useState, useCallback} from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,12 @@ import {
   StatusBar,
   RefreshControl,
 } from 'react-native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {AdminStackParamList} from '../../navigation/AppNavigator';
-import {getAllPurchaseOrders} from '../../database/purchaseOrderDAO';
-import {parseSqliteDateAsUtc} from '../../utils/dateTime';
-import {PurchaseOrder, AppSettings} from '../../types';
-import {getAllSettings} from '../../database/settingsDAO';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { AdminStackParamList } from '../../navigation/AppNavigator';
+import { getAllPurchaseOrders } from '../../database/purchaseOrderDAO';
+import { parseSqliteDateAsUtc } from '../../utils/dateTime';
+import { PurchaseOrder, AppSettings } from '../../types';
+import { getAllSettings } from '../../database/settingsDAO';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ type Props = {
   navigation: NativeStackNavigationProp<AdminStackParamList, 'PurchaseOrders'>;
 };
 
-type POWithCount = PurchaseOrder & {item_count: number};
+type POWithCount = PurchaseOrder & { item_count: number };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ const COLORS = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const PurchaseOrdersScreen: React.FC<Props> = ({navigation}) => {
+const PurchaseOrdersScreen: React.FC<Props> = ({ navigation }) => {
   const [orders, setOrders] = useState<POWithCount[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,12 +82,13 @@ const PurchaseOrdersScreen: React.FC<Props> = ({navigation}) => {
     });
   };
 
-  const renderOrder = ({item}: {item: POWithCount}) => (
+  const renderOrder = ({ item }: { item: POWithCount }) => (
     <TouchableOpacity
       style={styles.row}
       onPress={() =>
-        navigation.navigate('PurchaseOrderDetail', {purchaseOrderId: item.id})
-      }>
+        navigation.navigate('PurchaseOrderDetail', { purchaseOrderId: item.id })
+      }
+    >
       <Text style={styles.poNumber}>{item.po_number}</Text>
       <View style={styles.info}>
         <Text style={styles.date}>{formatDate(item.created_at)}</Text>
@@ -98,7 +99,8 @@ const PurchaseOrdersScreen: React.FC<Props> = ({navigation}) => {
       <View style={styles.right}>
         <Text style={styles.itemCount}>{item.item_count} items received</Text>
         <Text style={styles.cost}>
-          {settings?.primary_currency_symbol ?? '$'}{item.total_cost.toFixed(2)}
+          {settings?.primary_currency_symbol ?? '$'}
+          {item.total_cost.toFixed(2)}
         </Text>
       </View>
       <Text style={styles.chevron}>›</Text>
@@ -119,7 +121,8 @@ const PurchaseOrdersScreen: React.FC<Props> = ({navigation}) => {
         </View>
         <TouchableOpacity
           style={styles.newBtn}
-          onPress={() => navigation.navigate('NewPurchaseOrder')}>
+          onPress={() => navigation.navigate('NewPurchaseOrder')}
+        >
           <Text style={styles.newBtnText}>+ New PO</Text>
         </TouchableOpacity>
       </View>
@@ -143,7 +146,7 @@ const PurchaseOrdersScreen: React.FC<Props> = ({navigation}) => {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: COLORS.background},
+  container: { flex: 1, backgroundColor: COLORS.background },
   topbar: {
     backgroundColor: COLORS.primary,
     flexDirection: 'row',
@@ -152,17 +155,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  topbarLeft: {flexDirection: 'row', alignItems: 'center', gap: 6},
-  backBtn: {color: '#fff', fontSize: 28, lineHeight: 32},
-  topbarTitle: {color: '#fff', fontSize: 16, fontWeight: '500'},
+  topbarLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  backBtn: { color: '#fff', fontSize: 28, lineHeight: 32 },
+  topbarTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   newBtn: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  newBtnText: {color: '#fff', fontSize: 12},
-  listContent: {padding: 12},
+  newBtnText: { color: '#fff', fontSize: 12 },
+  listContent: { padding: 12 },
   emptyText: {
     textAlign: 'center',
     color: COLORS.textMuted,
@@ -180,14 +183,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     gap: 10,
   },
-  poNumber: {fontSize: 12, fontWeight: '500', color: COLORS.primary, width: 80},
-  info: {flex: 1},
-  date: {fontSize: 11, color: COLORS.textMuted},
-  note: {fontSize: 10, color: '#BBB', marginTop: 1},
-  right: {alignItems: 'flex-end'},
-  itemCount: {fontSize: 10, color: COLORS.textMuted},
-  cost: {fontSize: 13, fontWeight: '500', color: COLORS.text, marginTop: 2},
-  chevron: {fontSize: 18, color: '#BBB', marginLeft: 4},
+  poNumber: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: COLORS.primary,
+    width: 80,
+  },
+  info: { flex: 1 },
+  date: { fontSize: 11, color: COLORS.textMuted },
+  note: { fontSize: 10, color: '#BBB', marginTop: 1 },
+  right: { alignItems: 'flex-end' },
+  itemCount: { fontSize: 10, color: COLORS.textMuted },
+  cost: { fontSize: 13, fontWeight: '500', color: COLORS.text, marginTop: 2 },
+  chevron: { fontSize: 18, color: '#BBB', marginLeft: 4 },
 });
 
 export default PurchaseOrdersScreen;
