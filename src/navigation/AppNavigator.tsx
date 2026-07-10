@@ -44,7 +44,7 @@ export type AdminStackParamList = {
   PurchaseOrderDetail: { purchaseOrderId: number };
   Reports: undefined;
   Settings: undefined;
-  Sales: undefined;
+  Sales: { clearCart?: boolean } | undefined;
   Checkout: {
     cartItems: any[];
     subtotal: number;
@@ -55,7 +55,7 @@ export type AdminStackParamList = {
 };
 
 export type CashierStackParamList = {
-  Sales: undefined;
+  Sales: { clearCart?: boolean } | undefined;
   Checkout: {
     cartItems: any[];
     subtotal: number;

@@ -18,6 +18,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AdminStackParamList } from '../../navigation/AppNavigator';
 import { getAllProducts, deleteProduct } from '../../database/productDAO';
 import { getAllCategoriesFlat } from '../../database/categoryDAO';
+import { printProductLabel } from '../../utils/printerService';
 import { ProductWithCategory, Category } from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -106,6 +107,26 @@ const ProductListScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
+  const handlePrintLabel = async (product: ProductWithCategory) => {
+    if (!product.barcode) {
+      Alert.alert(
+        'Barcode missing',
+        `Product "${product.name}" does not have a barcode to print.`,
+      );
+      return;
+    }
+
+    try {
+      await printProductLabel(product.name, product.barcode);
+      Alert.alert('Printing', `Printing label for "${product.name}"...`);
+    } catch (e: any) {
+      Alert.alert(
+        'Print Error',
+        e?.message || 'Could not print the barcode label. Please check the printer.',
+      );
+    }
+  };
+
   const getEffectivePrice = (product: ProductWithCategory) => {
     if (
       product.discount_price !== null &&
@@ -145,6 +166,12 @@ const ProductListScreen: React.FC<Props> = ({ navigation }) => {
         ) : null}
         <Text style={styles.price}>${getEffectivePrice(item).toFixed(2)}</Text>
         <View style={styles.rowActions}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => handlePrintLabel(item)}
+          >
+            <Text style={styles.printIcon}>🖨️</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() =>
@@ -362,6 +389,7 @@ const styles = StyleSheet.create({
   },
   deleteBtn: { borderColor: '#FFCDD2', backgroundColor: '#FFF5F5' },
   editIcon: { fontSize: 13 },
+  printIcon: { fontSize: 13 },
   deleteIcon: { fontSize: 13 },
 });
 

@@ -15,6 +15,7 @@ import {
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {AdminStackParamList} from '../../navigation/AppNavigator';
 import {getAllPurchaseOrders} from '../../database/purchaseOrderDAO';
+import {parseSqliteDateAsUtc} from '../../utils/dateTime';
 import {PurchaseOrder, AppSettings} from '../../types';
 import {getAllSettings} from '../../database/settingsDAO';
 
@@ -74,7 +75,7 @@ const PurchaseOrdersScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    return parseSqliteDateAsUtc(dateStr).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',

@@ -5,6 +5,7 @@
 
 import { NativeModules } from 'react-native';
 import { TransactionWithItems, AppSettings } from '../types';
+import { parseSqliteDateAsUtc } from './dateTime';
 
 const { PrinterModule } = NativeModules;
 
@@ -82,7 +83,7 @@ export const printReceipt = async (
   await print(DIVIDER, SMALL_CENTER);
 
   // Date & transaction ID
-  const date = new Date(transaction.created_at).toLocaleString('en-US', {
+  const date = parseSqliteDateAsUtc(transaction.created_at).toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -215,5 +216,5 @@ export const printProductLabel = async (
   }
   await PrinterModule.printText(productName, CENTER_BOLD);
   await PrinterModule.printBarcode(barcode, 360, 80);
-  await PrinterModule.paperOut(40);
+  await PrinterModule.paperOut(160);
 };

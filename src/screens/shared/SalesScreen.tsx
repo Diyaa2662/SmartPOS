@@ -15,6 +15,7 @@ import {
   Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import {
   AdminStackParamList,
   CashierStackParamList,
@@ -31,6 +32,7 @@ type Props = {
     AdminStackParamList | CashierStackParamList,
     'Sales'
   >;
+  route: RouteProp<AdminStackParamList | CashierStackParamList, 'Sales'>;
   onLogout?: () => void;
 };
 
@@ -62,7 +64,7 @@ const getEffectivePrice = (product: Product): number => {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const SalesScreen: React.FC<Props> = ({ navigation, onLogout }) => {
+const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -71,6 +73,13 @@ const SalesScreen: React.FC<Props> = ({ navigation, onLogout }) => {
     undefined,
   );
   const [cart, setCart] = useState<CartItem[]>([]);
+
+  useEffect(() => {
+    if (route.params?.clearCart) {
+      setCart([]);
+      navigation.setParams({ clearCart: undefined } as any);
+    }
+  }, [route.params, navigation]);
 
   const loadData = useCallback(async () => {
     try {

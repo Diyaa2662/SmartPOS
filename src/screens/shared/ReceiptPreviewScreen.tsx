@@ -31,6 +31,7 @@ import {
   getRecentTransactions,
 } from '../../database/transactionDAO';
 import { getAllSettings } from '../../database/settingsDAO';
+import { parseSqliteDateAsUtc } from '../../utils/dateTime';
 import { Transaction, TransactionWithItems, AppSettings } from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -100,11 +101,26 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
     loadData();
   }, [loadData]);
 
-  const handleReprint = async () => {
-    if (!receipt || !settings) return;
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', e => {
+      if (e.data.action.type === 'GO_BACK') {
+        e.preventDefault();
+        navigation.navigate('Sales' as any, { clearCart: true });
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  const handleReprint = async (transactionId?: number) => {
+    if (!settings) return;
+
     try {
       const { printReceipt } = await import('../../utils/printerService');
-      await printReceipt(receipt, settings, printCurrency === 'primary');
+      const targetReceipt = transactionId
+        ? await getTransactionById(transactionId)
+        : receipt;
+      if (!targetReceipt) return;
+      await printReceipt(targetReceipt, settings, printCurrency === 'primary');
     } catch (e) {
       Alert.alert(
         'Print Error',
@@ -127,7 +143,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const formatDateTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('en-US', {
+    return parseSqliteDateAsUtc(dateStr).toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -178,7 +194,11 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
 
       {/* Top Bar */}
       <View style={styles.topbar}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate('Sales' as any, { clearCart: true })
+          }
+        >
           <Text style={styles.backBtn}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.topbarTitle}>Receipt Preview</Text>
@@ -362,7 +382,10 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
 
             {/* Reprint (FR-PRT-03) */}
-            <TouchableOpacity style={styles.reprintBtn} onPress={handleReprint}>
+            <TouchableOpacity
+              style={styles.reprintBtn}
+              onPress={() => handleReprint()}
+            >
               <Text style={styles.reprintBtnText}>
                 🖨️ Reprint receipt{' '}
                 {canPrintSecondary ? `(${currencyCode})` : ''}
@@ -394,7 +417,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                   </Text>
                   <TouchableOpacity
                     style={styles.histPrint}
-                    onPress={handleReprint}
+                    onPress={() => handleReprint(tx.id)}
                   >
                     <Text style={styles.histPrintIcon}>🖨️</Text>
                   </TouchableOpacity>

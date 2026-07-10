@@ -18,6 +18,7 @@ import { RouteProp } from '@react-navigation/native';
 import { AdminStackParamList } from '../../navigation/AppNavigator';
 import { getPurchaseOrderById } from '../../database/purchaseOrderDAO';
 import { getAllSettings } from '../../database/settingsDAO';
+import { parseSqliteDateAsUtc } from '../../utils/dateTime';
 import { PurchaseOrderWithItems, AppSettings } from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ const PurchaseOrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [purchaseOrderId]);
 
   const formatDateTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('en-US', {
+    return parseSqliteDateAsUtc(dateStr).toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
