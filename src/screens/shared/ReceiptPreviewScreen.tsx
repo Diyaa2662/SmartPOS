@@ -65,8 +65,11 @@ const COLORS = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
-  const transactionId = (route.params as { transactionId?: number } | undefined)
-    ?.transactionId;
+  const { transactionId, returnTo } =
+    (route.params as {
+      transactionId?: number;
+      returnTo?: 'Sales' | 'Dashboard';
+    } | undefined) ?? {};
 
   const [receipt, setReceipt] = useState<TransactionWithItems | null>(null);
   const [history, setHistory] = useState<Transaction[]>([]);
@@ -102,14 +105,16 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [loadData]);
 
   useEffect(() => {
+    if (returnTo !== 'Sales') return undefined;
+
     const unsubscribe = navigation.addListener('beforeRemove', e => {
       if (e.data.action.type === 'GO_BACK') {
         e.preventDefault();
-        navigation.navigate('Sales' as any, { clearCart: true });
+        navigation.replace('Sales' as any, { clearCart: true });
       }
     });
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, returnTo]);
 
   const handleReprint = async (transactionId?: number) => {
     if (!settings) return;
@@ -188,17 +193,21 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
     );
   }
 
+  const handleBackPress = () => {
+    if (returnTo === 'Sales') {
+      navigation.replace('Sales' as any, { clearCart: true });
+      return;
+    }
+    navigation.goBack();
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
       {/* Top Bar */}
       <View style={styles.topbar}>
-        <TouchableOpacity
-          onPress={() =>
-            navigation.navigate('Sales' as any, { clearCart: true })
-          }
-        >
+        <TouchableOpacity onPress={handleBackPress}>
           <Text style={styles.backBtn}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.topbarTitle}>Receipt Preview</Text>

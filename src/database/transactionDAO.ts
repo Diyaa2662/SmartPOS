@@ -295,6 +295,92 @@ export const getCategorySalesDetailed = async (
 // for tenderedSecondary (or vice-versa) — amount_tendered always stores the
 // combined total expressed in primary currency.
 
+export interface InventorySnapshot {
+  current_total: number;
+  beginning_total: number;
+  change_total: number;
+}
+
+export const getInventorySnapshot = async (
+  startDate: string,
+): Promise<InventorySnapshot> => {
+  const db = getDatabase();
+
+  const currentResult = await db.execute(
+    'SELECT COALESCE(SUM(stock_qty), 0) as total FROM products;',
+  );
+  const current_total =
+    (currentResult.rows?.[0] as unknown as { total: number })?.total ?? 0;
+
+  const soldResult = await db.execute(
+    `SELECT COALESCE(SUM(ti.quantity), 0) as total
+       FROM transaction_items ti
+       JOIN transactions t ON t.id = ti.transaction_id
+       WHERE date(t.created_at) >= date(?);`,
+    [startDate],
+  );
+  const sold_since_start =
+    (soldResult.rows?.[0] as unknown as { total: number })?.total ?? 0;
+
+  const purchasedResult = await db.execute(
+    `SELECT COALESCE(SUM(poi.quantity), 0) as total
+       FROM purchase_order_items poi
+       JOIN purchase_orders po ON po.id = poi.purchase_order_id
+       WHERE date(po.created_at) >= date(?);`,
+    [startDate],
+  );
+  const purchased_since_start =
+    (purchasedResult.rows?.[0] as unknown as { total: number })?.total ?? 0;
+
+  const beginning_total =
+    current_total - purchased_since_start + sold_since_start;
+  const change_total = current_total - beginning_total;
+
+  return { current_total, beginning_total, change_total };
+};
+
+export const getProductInventorySnapshot = async (
+  productId: number,
+  startDate: string,
+): Promise<InventorySnapshot> => {
+  const db = getDatabase();
+
+  const currentResult = await db.execute(
+    'SELECT COALESCE(stock_qty, 0) as total FROM products WHERE id = ?;',
+    [productId],
+  );
+  const current_total =
+    (currentResult.rows?.[0] as unknown as { total: number })?.total ?? 0;
+
+  const soldResult = await db.execute(
+    `SELECT COALESCE(SUM(ti.quantity), 0) as total
+       FROM transaction_items ti
+       JOIN transactions t ON t.id = ti.transaction_id
+       WHERE ti.product_id = ?
+         AND date(t.created_at) >= date(?);`,
+    [productId, startDate],
+  );
+  const sold_since_start =
+    (soldResult.rows?.[0] as unknown as { total: number })?.total ?? 0;
+
+  const purchasedResult = await db.execute(
+    `SELECT COALESCE(SUM(poi.quantity), 0) as total
+       FROM purchase_order_items poi
+       JOIN purchase_orders po ON po.id = poi.purchase_order_id
+       WHERE poi.product_id = ?
+         AND date(po.created_at) >= date(?);`,
+    [productId, startDate],
+  );
+  const purchased_since_start =
+    (purchasedResult.rows?.[0] as unknown as { total: number })?.total ?? 0;
+
+  const beginning_total =
+    current_total - purchased_since_start + sold_since_start;
+  const change_total = current_total - beginning_total;
+
+  return { current_total, beginning_total, change_total };
+};
+
 export const saveTransaction = async (
   cartItems: CartItem[],
   subtotal: number,

@@ -59,6 +59,12 @@ const QUICK_ACCESS = [
   {label: 'Categories', icon: '🗂️', screen: 'CategoryManager'},
   {label: 'New Sale', icon: '🛒', screen: 'Sales'},
   {label: 'Purchase Orders', icon: '🚚', screen: 'PurchaseOrders'},
+  {
+    label: 'Receipt history',
+    icon: '🧾',
+    screen: 'ReceiptPreview',
+    params: { returnTo: 'Dashboard' as const },
+  },
   {label: 'Reports', icon: '📊', screen: 'Reports'},
   {label: 'Settings', icon: '⚙️', screen: 'Settings'},
 ];
@@ -237,7 +243,9 @@ const DashboardScreen: React.FC<Props> = ({navigation, onLogout}) => {
               <TouchableOpacity
                 key={item.screen}
                 style={styles.quickBtn}
-                onPress={() => navigation.navigate(item.screen as any)}>
+                onPress={() =>
+                  navigation.navigate(item.screen as any, (item as any).params)
+                }>
                 <Text style={styles.quickIcon}>{item.icon}</Text>
                 <Text style={styles.quickLabel}>{item.label}</Text>
               </TouchableOpacity>

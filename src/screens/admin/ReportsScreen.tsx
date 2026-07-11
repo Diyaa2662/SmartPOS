@@ -6,26 +6,33 @@
 // own exchange_rate_snapshot (FR-CUR-06) rather than the current live rate,
 // so historical totals stay accurate regardless of rate changes since the sale.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   StatusBar,
   Alert,
   ActivityIndicator,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AdminStackParamList } from '../../navigation/AppNavigator';
 import {
   getTransactionsByDateRange,
   getCategorySalesDetailed,
+  getProductInventorySnapshot,
 } from '../../database/transactionDAO';
 import { getAllSettings } from '../../database/settingsDAO';
-import { AppSettings, TransactionWithItems } from '../../types';
+import { getAllProducts } from '../../database/productDAO';
+import {
+  AppSettings,
+  ProductWithCategory,
+  TransactionWithItems,
+} from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +47,13 @@ type ReportSummary = {
   total_transactions: number;
   avg_transaction: number;
   total_discount: number;
+  total_units_sold: number;
+};
+
+type InventorySnapshot = {
+  current_total: number;
+  beginning_total: number;
+  change_total: number;
 };
 
 type CategorySales = { category_name: string; total_revenue: number };
@@ -77,6 +91,19 @@ const toDisplayAmount = (
   return amount * rateSnapshot;
 };
 
+const parseDateInput = (dateString: string): Date => {
+  const parsed = new Date(dateString + 'T00:00:00');
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
+const addDate = (date: Date, field: 'day' | 'month' | 'year', value: number) => {
+  const next = new Date(date);
+  if (field === 'day') next.setDate(next.getDate() + value);
+  if (field === 'month') next.setMonth(next.getMonth() + value);
+  if (field === 'year') next.setFullYear(next.getFullYear() + value);
+  return next;
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const ReportsScreen: React.FC<Props> = ({ navigation }) => {
@@ -90,6 +117,9 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [displayCurrency, setDisplayCurrency] =
     useState<DisplayCurrency>('primary');
+  const [editingDateField, setEditingDateField] =
+    useState<'start' | 'end' | null>(null);
+  const [pickerDate, setPickerDate] = useState(new Date());
 
   const [transactions, setTransactions] = useState<TransactionWithItems[]>([]);
   const [categoryRows, setCategoryRows] = useState<
@@ -100,10 +130,103 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
     }[]
   >([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [productSearch, setProductSearch] = useState('');
+  const [productResults, setProductResults] = useState<ProductWithCategory[]>([]);
+  const [selectedProduct, setSelectedProduct] =
+    useState<ProductWithCategory | null>(null);
+  const [productSnapshot, setProductSnapshot] =
+    useState<InventorySnapshot | null>(null);
+
+  const handleProductSearchChange = async (text: string) => {
+    setProductSearch(text);
+    if (selectedProduct && text !== selectedProduct.name) {
+      setSelectedProduct(null);
+      setProductSnapshot(null);
+    }
+    if (text.trim().length < 1) {
+      setProductResults([]);
+      return;
+    }
+
+    try {
+      const results = await getAllProducts(text);
+      setProductResults(results.slice(0, 5));
+    } catch (e) {
+      console.error('Product search error:', e);
+    }
+  };
+
+  const loadProductSnapshot = async (productId: number) => {
+    if (!startDate) return;
+    try {
+      const snapshot = await getProductInventorySnapshot(productId, startDate);
+      setProductSnapshot(snapshot);
+    } catch (e) {
+      console.error('Product snapshot error:', e);
+    }
+  };
+
+  const handleSelectProduct = async (product: ProductWithCategory) => {
+    setSelectedProduct(product);
+    setProductSearch(product.name);
+    setProductResults([]);
+    await loadProductSnapshot(product.id);
+  };
+
+  useEffect(() => {
+    const refreshSnapshot = async () => {
+      if (!selectedProduct || !startDate) return;
+      try {
+        const snapshot = await getProductInventorySnapshot(
+          selectedProduct.id,
+          startDate,
+        );
+        setProductSnapshot(snapshot);
+      } catch (e) {
+        console.error('Product snapshot reload error:', e);
+      }
+    };
+    refreshSnapshot();
+  }, [selectedProduct, startDate]);
+
+  const setPresetRange = (range: 'day' | 'week' | 'month') => {
+    const now = new Date();
+    const end = formatDateInput(now);
+    let start: string;
+    if (range === 'day') {
+      start = end;
+    } else if (range === 'week') {
+      const rangeStart = addDate(now, 'day', -6);
+      start = formatDateInput(rangeStart);
+    } else {
+      const rangeStart = addDate(now, 'day', -29);
+      start = formatDateInput(rangeStart);
+    }
+    setStartDate(start);
+    setEndDate(end);
+  };
+
+  const openDatePicker = (field: 'start' | 'end') => {
+    setPickerDate(parseDateInput(field === 'start' ? startDate : endDate));
+    setEditingDateField(field);
+  };
+
+  const confirmDatePicker = () => {
+    if (editingDateField === 'start') {
+      setStartDate(formatDateInput(pickerDate));
+    } else if (editingDateField === 'end') {
+      setEndDate(formatDateInput(pickerDate));
+    }
+    setEditingDateField(null);
+  };
 
   const handleGenerate = async () => {
     if (!startDate || !endDate) {
-      Alert.alert('Validation', 'Please enter both start and end dates.');
+      Alert.alert('Validation', 'Please choose both start and end dates.');
+      return;
+    }
+    if (parseDateInput(startDate) > parseDateInput(endDate)) {
+      Alert.alert('Validation', 'Start date cannot be after end date.');
       return;
     }
     setLoading(true);
@@ -117,6 +240,9 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
       setCategoryRows(catRows);
       setSettings(appSettings);
       setHasGenerated(true);
+      if (selectedProduct) {
+        await loadProductSnapshot(selectedProduct.id);
+      }
     } catch (e) {
       console.error('Report generation error:', e);
       Alert.alert('Error', 'Could not generate report.');
@@ -125,21 +251,6 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const handleExportPDF = () => {
-    // FR-RPT-03 — placeholder until PDF export library is integrated
-    Alert.alert(
-      'Export PDF',
-      'PDF export will be available once the PDF generation library is integrated.',
-    );
-  };
-
-  const handlePrint = () => {
-    // FR-RPT-04 — placeholder until thermal printer SDK is integrated (Section 7.2)
-    Alert.alert(
-      'Print',
-      'Printing will be available once the printer SDK is integrated.',
-    );
-  };
 
   // ─── Derive summary / category / top-products from raw transactions,
   //     converting each transaction with ITS OWN rate snapshot (FR-CUR-06) ──
@@ -151,6 +262,7 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
         total_transactions: 0,
         avg_transaction: 0,
         total_discount: 0,
+        total_units_sold: 0,
       };
     }
     const total_revenue = transactions.reduce(
@@ -173,11 +285,18 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
         ),
       0,
     );
+    const total_units_sold = transactions.reduce(
+      (sum, t) =>
+        sum +
+        t.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+      0,
+    );
     return {
       total_revenue,
       total_transactions: transactions.length,
       avg_transaction: total_revenue / transactions.length,
       total_discount,
+      total_units_sold,
     };
   })();
 
@@ -248,29 +367,137 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
       </View>
 
       <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
+        <Modal
+          visible={editingDateField !== null}
+          transparent
+          animationType="fade"
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>
+                Select {editingDateField === 'start' ? 'start' : 'end'} date
+              </Text>
+              <View style={styles.datePickerRow}>
+                <TouchableOpacity
+                  style={styles.datePickerButton}
+                  onPress={() => setPickerDate(addDate(pickerDate, 'year', -1))}
+                >
+                  <Text style={styles.datePickerButtonText}>-</Text>
+                </TouchableOpacity>
+                <View style={styles.datePickerColumn}>
+                  <Text style={styles.datePickerLabel}>Year</Text>
+                  <Text style={styles.datePickerValue}>
+                    {pickerDate.getFullYear()}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.datePickerButton}
+                  onPress={() => setPickerDate(addDate(pickerDate, 'year', 1))}
+                >
+                  <Text style={styles.datePickerButtonText}>+</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.datePickerRow}>
+                <TouchableOpacity
+                  style={styles.datePickerButton}
+                  onPress={() => setPickerDate(addDate(pickerDate, 'month', -1))}
+                >
+                  <Text style={styles.datePickerButtonText}>-</Text>
+                </TouchableOpacity>
+                <View style={styles.datePickerColumn}>
+                  <Text style={styles.datePickerLabel}>Month</Text>
+                  <Text style={styles.datePickerValue}>
+                    {pickerDate.getMonth() + 1}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.datePickerButton}
+                  onPress={() => setPickerDate(addDate(pickerDate, 'month', 1))}
+                >
+                  <Text style={styles.datePickerButtonText}>+</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.datePickerRow}>
+                <TouchableOpacity
+                  style={styles.datePickerButton}
+                  onPress={() => setPickerDate(addDate(pickerDate, 'day', -1))}
+                >
+                  <Text style={styles.datePickerButtonText}>-</Text>
+                </TouchableOpacity>
+                <View style={styles.datePickerColumn}>
+                  <Text style={styles.datePickerLabel}>Day</Text>
+                  <Text style={styles.datePickerValue}>
+                    {pickerDate.getDate()}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.datePickerButton}
+                  onPress={() => setPickerDate(addDate(pickerDate, 'day', 1))}
+                >
+                  <Text style={styles.datePickerButtonText}>+</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalActionBtn}
+                  onPress={() => setEditingDateField(null)}
+                >
+                  <Text style={styles.modalActionText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalActionBtn, styles.modalActionPrimary]}
+                  onPress={confirmDatePicker}
+                >
+                  <Text style={[styles.modalActionText, styles.modalActionPrimaryText]}>
+                    Set date
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         {/* Date range (FR-RPT-01) */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Date range</Text>
+          <View style={styles.rangeButtonsRow}>
+            <TouchableOpacity
+              style={styles.rangeButton}
+              onPress={() => setPresetRange('day')}
+            >
+              <Text style={styles.rangeButtonText}>Day</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.rangeButton}
+              onPress={() => setPresetRange('week')}
+            >
+              <Text style={styles.rangeButtonText}>Week</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.rangeButton}
+              onPress={() => setPresetRange('month')}
+            >
+              <Text style={styles.rangeButtonText}>Month</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.row2}>
-            <View style={[styles.field, { flex: 1 }]}>
+            <View style={[styles.field, { flex: 1 }]}> 
               <Text style={styles.label}>Start date</Text>
-              <TextInput
-                style={styles.input}
-                value={startDate}
-                onChangeText={setStartDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={COLORS.textMuted}
-              />
+              <TouchableOpacity
+                style={styles.dateField}
+                onPress={() => openDatePicker('start')}
+              >
+                <Text style={styles.dateFieldText}>{startDate}</Text>
+              </TouchableOpacity>
             </View>
-            <View style={[styles.field, { flex: 1 }]}>
+            <View style={[styles.field, { flex: 1 }]}> 
               <Text style={styles.label}>End date</Text>
-              <TextInput
-                style={styles.input}
-                value={endDate}
-                onChangeText={setEndDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={COLORS.textMuted}
-              />
+              <TouchableOpacity
+                style={styles.dateField}
+                onPress={() => openDatePicker('end')}
+              >
+                <Text style={styles.dateFieldText}>{endDate}</Text>
+              </TouchableOpacity>
             </View>
           </View>
           <TouchableOpacity
@@ -285,7 +512,53 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
             )}
           </TouchableOpacity>
         </View>
-
+ 
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Inventory snapshot</Text>
+          <Text style={styles.label}>Search product</Text>
+          <TextInput
+            value={productSearch}
+            onChangeText={handleProductSearchChange}
+            placeholder="Start typing product name..."
+            placeholderTextColor={COLORS.textMuted}
+            style={styles.input}
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {productResults.length > 0 && (
+            <View style={styles.searchResults}>
+              {productResults.map(product => (
+                <TouchableOpacity
+                  key={product.id}
+                  style={styles.searchResultItem}
+                  onPress={() => handleSelectProduct(product)}
+                >
+                  <Text style={styles.searchResultText}>{product.name}</Text>
+                  <Text style={styles.searchResultCategory}>
+                    {product.category_name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+          {selectedProduct && productSnapshot && (
+            <View style={styles.snapshotCard}>
+              <Text style={styles.snapshotTitle}>{selectedProduct.name}</Text>
+              <Text style={styles.snapshotLine}>
+                Beginning quantity: {productSnapshot.beginning_total}
+              </Text>
+              <Text style={styles.snapshotLine}>
+                Current quantity: {productSnapshot.current_total}
+              </Text>
+              <Text style={styles.snapshotLine}>
+                Change:{' '}
+                {productSnapshot.change_total >= 0 ? '+' : ''}
+                {productSnapshot.change_total}
+              </Text>
+            </View>
+          )}
+        </View>
+ 
         {/* Currency display toggle — client-requested addition */}
         {hasGenerated && canShowSecondary && (
           <View style={styles.card}>
@@ -375,6 +648,12 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
                         {summary.total_discount.toFixed(2)}
                       </Text>
                     </View>
+                    <View style={styles.kpi}>
+                      <Text style={styles.kpiLabel}>Units sold</Text>
+                      <Text style={styles.kpiValue}>
+                        {summary.total_units_sold}
+                      </Text>
+                    </View>
                   </View>
                 </View>
 
@@ -449,21 +728,6 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
                   ))}
                 </View>
 
-                {/* Export / Print (FR-RPT-03, FR-RPT-04) */}
-                <View style={styles.actionRow}>
-                  <TouchableOpacity
-                    style={styles.exportBtn}
-                    onPress={handleExportPDF}
-                  >
-                    <Text style={styles.exportBtnText}>📄 Export PDF</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.printBtn}
-                    onPress={handlePrint}
-                  >
-                    <Text style={styles.printBtnText}>🖨️ Print report</Text>
-                  </TouchableOpacity>
-                </View>
               </>
             )}
           </>
@@ -552,6 +816,143 @@ const styles = StyleSheet.create({
   },
   currencyOptionTextActive: { color: '#fff' },
   currencyNote: { fontSize: 9, color: COLORS.textMuted },
+  rangeButtonsRow: { flexDirection: 'row', gap: 8 },
+  rangeButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 0.5,
+    borderColor: '#E0E0E0',
+  },
+  rangeButtonText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '500' },
+  dateField: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 0.5,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    justifyContent: 'center',
+  },
+  dateFieldText: { fontSize: 12, color: COLORS.text },
+  searchResults: {
+    marginTop: 8,
+    backgroundColor: COLORS.white,
+    borderWidth: 0.5,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  searchResultItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: COLORS.border,
+  },
+  searchResultText: {
+    fontSize: 12,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  searchResultCategory: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  snapshotCard: {
+    marginTop: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    padding: 10,
+  },
+  snapshotTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  snapshotLine: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 18,
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  datePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  datePickerColumn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  datePickerLabel: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginBottom: 4,
+  },
+  datePickerValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  datePickerButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  modalActionBtn: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  modalActionText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  modalActionPrimary: {
+    backgroundColor: COLORS.primary,
+  },
+  modalActionPrimaryText: {
+    color: '#fff',
+  },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   kpi: {
     width: '48%',
@@ -605,25 +1006,6 @@ const styles = StyleSheet.create({
   tblRev: { fontSize: 10, fontWeight: '500', color: COLORS.primary },
   colQty: { width: 40, textAlign: 'center' },
   colRev: { width: 64, textAlign: 'right' },
-  actionRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
-  exportBtn: {
-    flex: 1,
-    borderWidth: 0.5,
-    borderColor: COLORS.primary,
-    borderRadius: 8,
-    padding: 11,
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-  },
-  exportBtnText: { fontSize: 11, color: COLORS.primary },
-  printBtn: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    padding: 11,
-    alignItems: 'center',
-  },
-  printBtnText: { fontSize: 11, fontWeight: '500', color: '#fff' },
 });
 
 export default ReportsScreen;

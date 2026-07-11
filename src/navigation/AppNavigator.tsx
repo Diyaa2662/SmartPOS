@@ -51,7 +51,7 @@ export type AdminStackParamList = {
     discountAmount: number;
     grandTotal: number;
   };
-  ReceiptPreview: { transactionId?: number }; // undefined = last receipt
+  ReceiptPreview: { transactionId?: number; returnTo?: 'Sales' | 'Dashboard' }; // undefined = last receipt
 };
 
 export type CashierStackParamList = {
@@ -62,7 +62,7 @@ export type CashierStackParamList = {
     discountAmount: number;
     grandTotal: number;
   };
-  ReceiptPreview: { transactionId?: number };
+  ReceiptPreview: { transactionId?: number; returnTo?: 'Sales' | 'Dashboard' };
 };
 
 // ─── Stack Navigators ─────────────────────────────────────────────────────────

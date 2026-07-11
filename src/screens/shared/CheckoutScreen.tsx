@@ -164,7 +164,10 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         );
       }
 
-      navigation.replace('ReceiptPreview' as any, { transactionId });
+      navigation.replace('ReceiptPreview' as any, {
+        transactionId,
+        returnTo: 'Sales',
+      });
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'Could not complete the sale.');
     } finally {
