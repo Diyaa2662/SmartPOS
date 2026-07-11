@@ -83,13 +83,16 @@ export const printReceipt = async (
   await print(DIVIDER, SMALL_CENTER);
 
   // Date & transaction ID
-  const date = parseSqliteDateAsUtc(transaction.created_at).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  const date = parseSqliteDateAsUtc(transaction.created_at).toLocaleString(
+    'en-US',
+    {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    },
+  );
   await print(date, SMALL_CENTER);
   await print(`TXN #${String(transaction.id).padStart(6, '0')}`, SMALL_CENTER);
   await print(DIVIDER, SMALL_CENTER);
