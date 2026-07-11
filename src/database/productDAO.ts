@@ -224,3 +224,17 @@ export const incrementStock = async (
     [quantity, product_id],
   );
 };
+
+// ─── Decrease stock quantity when a sale is completed (FR-SAL-10)
+export const decrementStock = async (
+  product_id: number,
+  quantity: number,
+): Promise<void> => {
+  const db = getDatabase();
+  await db.execute(
+    `UPDATE products
+     SET stock_qty = MAX(stock_qty - ?, 0), updated_at = datetime('now')
+     WHERE id = ?;`,
+    [quantity, product_id],
+  );
+};

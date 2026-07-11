@@ -4,7 +4,7 @@
 // SmartPOS - New Purchase Order Screen
 // Based on SRS Section 3.7 (FR-PO) and Section 8
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -70,6 +70,25 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
   const [supplierNote, setSupplierNote] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([createEmptyLine()]);
   const [saving, setSaving] = useState(false);
+  const lineInputRefs = useRef<Record<string, TextInput | null>>({});
+
+  const focusFirstLineInput = () => {
+    const firstLineId = lines[0]?.id;
+    if (!firstLineId) return;
+    const ref = lineInputRefs.current[firstLineId];
+    if (ref) {
+      ref.focus();
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      setTimeout(() => {
+        focusFirstLineInput();
+      }, 100);
+    });
+    return unsubscribe;
+  }, [navigation, lines]);
 
   const totalCost = lines.reduce((sum, line) => {
     const qty = parseFloat(line.quantity) || 0;
@@ -95,6 +114,27 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  const handleSearchSubmit = async (id: string, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    try {
+      const product = await getProductByBarcode(trimmed);
+      if (product) {
+        handleSelectProduct(id, product);
+        return;
+      }
+      // If the input is likely a name search, keep the current search results.
+      if (!trimmed.includes(' ')) {
+        Alert.alert(
+          'Product not found',
+          `No product matches barcode "${trimmed}".`,
+        );
+      }
+    } catch (e) {
+      console.error('Product search submit error:', e);
+    }
+  };
+
   const handleSelectProduct = (id: string, product: Product) => {
     updateLine(id, {
       product,
@@ -105,8 +145,11 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleScanBarcode = (id: string) => {
-    // FR-PO-02 — product can be selected via search OR barcode scan
-    // Placeholder until hardware scanner SDK is integrated (Section 7.1)
+    const ref = lineInputRefs.current[id];
+    if (ref) {
+      ref.focus();
+      return;
+    }
     Alert.alert(
       'Scanner',
       'Barcode scanning will be available once the device scanner SDK is integrated.',
@@ -223,6 +266,14 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
                     style={[styles.input, { flex: 1 }]}
                     value={line.searchText}
                     onChangeText={text => handleSearchChange(line.id, text)}
+                    onSubmitEditing={({ nativeEvent }) =>
+                      handleSearchSubmit(line.id, nativeEvent.text)
+                    }
+                    returnKeyType="search"
+                    blurOnSubmit={false}
+                    ref={input => {
+                      lineInputRefs.current[line.id] = input;
+                    }}
                     placeholder="Search product..."
                     placeholderTextColor={COLORS.textMuted}
                   />

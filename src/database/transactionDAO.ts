@@ -350,6 +350,12 @@ export const saveTransaction = async (
           cartItem.line_total,
         ],
       );
+      await tx.execute(
+        `UPDATE products
+         SET stock_qty = MAX(stock_qty - ?, 0), updated_at = datetime('now')
+         WHERE id = ?;`,
+        [cartItem.quantity, cartItem.product.id],
+      );
     }
   });
 

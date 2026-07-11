@@ -3,7 +3,7 @@
 // Based on SRS Section 3.3 (FR-SAL) and Section 8
 // Accessible by both Admin and Cashier roles
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -73,6 +73,7 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
     undefined,
   );
   const [cart, setCart] = useState<CartItem[]>([]);
+  const searchInputRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
     if (route.params?.clearCart) {
@@ -105,6 +106,15 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
     const unsubscribe = navigation.addListener('focus', loadData);
     return unsubscribe;
   }, [navigation, loadData]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   // ─── Cart logic ──────────────────────────────────────────────────────────
 
@@ -155,18 +165,27 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
   };
 
   const handleBarcodeSubmit = async (code: string) => {
-    if (!code.trim()) return;
+    const trimmedCode = code.trim();
+    if (!trimmedCode) return;
+
+    // If the user is manually searching for a product name, do not show an error.
+    const isLikelyBarcode = !trimmedCode.includes(' ') && trimmedCode.length >= 3;
+    if (!isLikelyBarcode) return;
+
     try {
       // FR-SAL-02 — add by scanning barcode
-      const product = await getProductByBarcode(code.trim());
+      const product = await getProductByBarcode(trimmedCode);
       if (product) {
         addToCart(product);
         setSearch('');
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
       } else {
         // FR-SAL-11 — barcode not found
         Alert.alert(
           'Product not found',
-          `No product matches barcode "${code}".`,
+          `No product matches barcode "${trimmedCode}".`,
         );
       }
     } catch (e) {
@@ -261,18 +280,26 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
           <View style={styles.searchBox}>
             <Text style={styles.searchIcon}>🔍</Text>
             <TextInput
+              ref={searchInputRef}
               style={styles.searchInput}
               placeholder="Search or scan barcode..."
               placeholderTextColor={COLORS.textMuted}
               value={search}
               onChangeText={setSearch}
-              onSubmitEditing={() => handleBarcodeSubmit(search)}
+              onSubmitEditing={event => handleBarcodeSubmit(event.nativeEvent.text)}
               returnKeyType="search"
+              autoCapitalize="none"
+              autoCorrect={false}
+              blurOnSubmit={false}
             />
           </View>
           <TouchableOpacity
             style={styles.scanBtn}
-            onPress={() => handleBarcodeSubmit(search)}
+            onPress={() => {
+              if (searchInputRef.current) {
+                searchInputRef.current.focus();
+              }
+            }}
           >
             <Text style={styles.scanBtnIcon}>⌗</Text>
           </TouchableOpacity>
