@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-native/no-inline-styles */
 // src/screens/admin/NewPurchaseOrderScreen.tsx
 // SmartPOS - New Purchase Order Screen
@@ -20,6 +20,7 @@ import { AdminStackParamList } from '../../navigation/AppNavigator';
 import { getProductByBarcode, getAllProducts } from '../../database/productDAO';
 import { savePurchaseOrder, NewPOLine } from '../../database/purchaseOrderDAO';
 import { Product } from '../../types';
+import { useTranslation } from '../../i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ const createEmptyLine = (): DraftLine => ({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
+  const { t } = useTranslation();
   const [supplierNote, setSupplierNote] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([createEmptyLine()]);
   const [saving, setSaving] = useState(false);
@@ -126,8 +128,8 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
       // If the input is likely a name search, keep the current search results.
       if (!trimmed.includes(' ')) {
         Alert.alert(
-          'Product not found',
-          `No product matches barcode "${trimmed}".`,
+          t('noProductFound'),
+          t('productNotFoundBarcode', { barcode: trimmed }),
         );
       }
     } catch (e) {
@@ -150,10 +152,7 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
       ref.focus();
       return;
     }
-    Alert.alert(
-      'Scanner',
-      'Barcode scanning will be available once the device scanner SDK is integrated.',
-    );
+    Alert.alert(t('scanner'), t('scannerUnavailable'));
   };
 
   const handleRemoveLine = (id: string) => {
@@ -171,22 +170,25 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (!line.product) {
-        Alert.alert('Validation', `Line ${i + 1}: please select a product.`);
+        Alert.alert(
+          t('validationRequired'),
+          t('productLineValidation', { line: i + 1 }),
+        );
         return;
       }
       const qty = parseInt(line.quantity, 10);
       if (!Number.isInteger(qty) || qty <= 0) {
         Alert.alert(
-          'Validation',
-          `Line ${i + 1}: quantity must be a positive integer.`,
+          t('validationRequired'),
+          t('quantityPositiveInteger', { line: i + 1 }),
         );
         return;
       }
       const price = parseFloat(line.purchasePrice);
       if (isNaN(price) || price < 0) {
         Alert.alert(
-          'Validation',
-          `Line ${i + 1}: purchase price must be 0 or greater.`,
+          t('validationRequired'),
+          t('purchasePriceZeroOrGreater', { line: i + 1 }),
         );
         return;
       }
@@ -205,9 +207,9 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
         poLines,
         supplierNote.trim() || null,
       );
-      Alert.alert('Success', 'Purchase order saved successfully.', [
+      Alert.alert(t('success'), t('purchaseOrderSaved'), [
         {
-          text: 'OK',
+          text: t('ok'),
           onPress: () =>
             navigation.replace('PurchaseOrderDetail', {
               purchaseOrderId: poId,
@@ -215,7 +217,7 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
         },
       ]);
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Could not save purchase order.');
+      Alert.alert(t('error'), e.message ?? t('somethingWentWrong'));
     } finally {
       setSaving(false);
     }
@@ -230,20 +232,20 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backBtn}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.topbarTitle}>New Purchase Order</Text>
+        <Text style={styles.topbarTitle}>{t('newPurchaseOrder')}</Text>
       </View>
 
       <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
         {/* Order Info */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Order info</Text>
+          <Text style={styles.cardTitle}>{t('orderInfo')}</Text>
           <View style={styles.field}>
-            <Text style={styles.label}>Supplier note</Text>
+            <Text style={styles.label}>{t('supplierNote')}</Text>
             <TextInput
               style={[styles.input, styles.textarea]}
               value={supplierNote}
               onChangeText={setSupplierNote}
-              placeholder="Optional note..."
+              placeholder={t('optionalNote')}
               placeholderTextColor={COLORS.textMuted}
               multiline
               numberOfLines={2}
@@ -253,13 +255,13 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* Line Items */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Items received</Text>
+          <Text style={styles.cardTitle}>{t('itemsReceived')}</Text>
 
           {lines.map((line, index) => (
             <View key={line.id} style={styles.lineItem}>
               <View style={styles.field}>
                 <Text style={styles.label}>
-                  Product <Text style={styles.required}>*</Text>
+                  {t('product')} <Text style={styles.required}>*</Text>
                 </Text>
                 <View style={styles.searchRow}>
                   <TextInput
@@ -274,7 +276,7 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
                     ref={input => {
                       lineInputRefs.current[line.id] = input;
                     }}
-                    placeholder="Search product..."
+                    placeholder={t('searchProduct')}
                     placeholderTextColor={COLORS.textMuted}
                   />
                   <TouchableOpacity
@@ -307,7 +309,7 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
               <View style={styles.row2}>
                 <View style={[styles.field, { flex: 1 }]}>
                   <Text style={styles.label}>
-                    Qty received <Text style={styles.required}>*</Text>
+                    {t('qtyReceived')} <Text style={styles.required}>*</Text>
                   </Text>
                   <TextInput
                     style={styles.input}
@@ -322,7 +324,7 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
                 </View>
                 <View style={[styles.field, { flex: 1 }]}>
                   <Text style={styles.label}>
-                    Purchase price <Text style={styles.required}>*</Text>
+                    {t('purchasePrice')} <Text style={styles.required}>*</Text>
                   </Text>
                   <TextInput
                     style={styles.input}
@@ -342,7 +344,7 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
                   style={styles.removeLineBtn}
                   onPress={() => handleRemoveLine(line.id)}
                 >
-                  <Text style={styles.removeLineText}>🗑️ Remove line</Text>
+                  <Text style={styles.removeLineText}>{t('removeLine')}</Text>
                 </TouchableOpacity>
               )}
 
@@ -351,13 +353,13 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
           ))}
 
           <TouchableOpacity style={styles.addLineBtn} onPress={handleAddLine}>
-            <Text style={styles.addLineText}>+ Add item</Text>
+            <Text style={styles.addLineText}>{t('addItem')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Total */}
         <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total cost</Text>
+          <Text style={styles.totalLabel}>{t('totalCost')}</Text>
           <Text style={styles.totalValue}>${totalCost.toFixed(2)}</Text>
         </View>
 
@@ -367,7 +369,7 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.cancelBtn}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.cancelBtnText}>Cancel</Text>
+            <Text style={styles.cancelBtnText}>{t('cancelText')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
@@ -375,7 +377,7 @@ const NewPurchaseOrderScreen: React.FC<Props> = ({ navigation }) => {
             disabled={saving}
           >
             <Text style={styles.saveBtnText}>
-              {saving ? 'Saving...' : '💾 Save purchase order'}
+              {saving ? t('saving') : t('savePurchaseOrder')}
             </Text>
           </TouchableOpacity>
         </View>

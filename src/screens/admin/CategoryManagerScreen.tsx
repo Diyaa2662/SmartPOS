@@ -31,6 +31,7 @@ import {
   deleteCategory,
 } from '../../database/categoryDAO';
 import { Category, CategoryWithChildren } from '../../types';
+import { useTranslation } from '../../i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,7 @@ const CategoryModal: React.FC<ModalProps> = ({
   allCategories,
   excludedParentIds,
 }) => {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState(CATEGORY_COLORS[0]);
@@ -122,7 +124,7 @@ const CategoryModal: React.FC<ModalProps> = ({
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Validation', 'Category name is required.');
+      Alert.alert(t('validationRequired'), t('categoryName'));
       return;
     }
     setSaving(true);
@@ -146,7 +148,7 @@ const CategoryModal: React.FC<ModalProps> = ({
       onSave();
       onClose();
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Could not save category.');
+      Alert.alert(t('error'), e.message ?? t('somethingWentWrong'));
     } finally {
       setSaving(false);
     }
@@ -161,36 +163,37 @@ const CategoryModal: React.FC<ModalProps> = ({
       <View style={modalStyles.overlay}>
         <View style={modalStyles.container}>
           <Text style={modalStyles.title}>
-            {editCategory ? 'Edit category' : 'Add new category'}
+            {editCategory ? t('editCategory') : t('addNewCategoryTitle')}
           </Text>
 
           <View style={modalStyles.field}>
             <Text style={modalStyles.label}>
-              Name <Text style={{ color: COLORS.required }}>*</Text>
+              {t('categoryName')}{' '}
+              <Text style={{ color: COLORS.required }}>*</Text>
             </Text>
             <TextInput
               style={modalStyles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Category name..."
+              placeholder={t('categoryName')}
               placeholderTextColor={COLORS.textMuted}
             />
           </View>
 
           <View style={modalStyles.field}>
-            <Text style={modalStyles.label}>Description</Text>
+            <Text style={modalStyles.label}>{t('description')}</Text>
             <TextInput
               style={modalStyles.input}
               value={description}
               onChangeText={setDescription}
-              placeholder="Optional..."
+              placeholder={t('optional')}
               placeholderTextColor={COLORS.textMuted}
             />
           </View>
 
           {/* Color picker (FR-CAT-02, FR-CAT-06) */}
           <View style={modalStyles.field}>
-            <Text style={modalStyles.label}>Color</Text>
+            <Text style={modalStyles.label}>{t('color')}</Text>
             <View style={modalStyles.colorRow}>
               {CATEGORY_COLORS.map(c => (
                 <TouchableOpacity
@@ -208,7 +211,7 @@ const CategoryModal: React.FC<ModalProps> = ({
 
           {/* Parent category — any existing category, unlimited depth (FR-CAT-01, extended) */}
           <View style={modalStyles.field}>
-            <Text style={modalStyles.label}>Parent category (optional)</Text>
+            <Text style={modalStyles.label}>{t('parentCategoryOptional')}</Text>
             <ScrollView style={modalStyles.parentList} nestedScrollEnabled>
               <TouchableOpacity
                 style={[modalStyles.input, { paddingVertical: 10 }]}
@@ -221,7 +224,7 @@ const CategoryModal: React.FC<ModalProps> = ({
                       : modalStyles.inputInactive
                   }
                 >
-                  None (root category)
+                  {t('noneRootCategory')}
                 </Text>
               </TouchableOpacity>
               {parentOptions.map(cat => (
@@ -249,7 +252,7 @@ const CategoryModal: React.FC<ModalProps> = ({
 
           <View style={modalStyles.actionRow}>
             <TouchableOpacity style={modalStyles.cancelBtn} onPress={onClose}>
-              <Text style={modalStyles.cancelText}>Cancel</Text>
+              <Text style={modalStyles.cancelText}>{t('cancelText')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -260,7 +263,7 @@ const CategoryModal: React.FC<ModalProps> = ({
               disabled={saving}
             >
               <Text style={modalStyles.saveText}>
-                {saving ? 'Saving...' : 'Save'}
+                {saving ? t('saving') : t('save')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -290,6 +293,7 @@ const TreeRow: React.FC<TreeRowProps> = ({
   onEdit,
   onDelete,
 }) => {
+  const { t } = useTranslation();
   const hasChildren = category.children.length > 0;
   const isExpanded = expanded.has(category.id);
 
@@ -313,7 +317,9 @@ const TreeRow: React.FC<TreeRowProps> = ({
         >
           {category.name}
         </Text>
-        <Text style={styles.itemCount}>{category.item_count} items</Text>
+        <Text style={styles.itemCount}>
+          {t('itemsCount', { count: category.item_count })}
+        </Text>
         <TouchableOpacity
           style={styles.actionBtn}
           onPress={() => onEdit(category)}
@@ -352,6 +358,7 @@ const TreeRow: React.FC<TreeRowProps> = ({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const CategoryManagerScreen: React.FC<Props> = ({ navigation }) => {
+  const { t } = useTranslation();
   const [tree, setTree] = useState<CategoryWithChildren[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -396,21 +403,25 @@ const CategoryManagerScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleDelete = (cat: CategoryWithChildren) => {
-    Alert.alert('Delete category', `Delete "${cat.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteCategory(cat.id);
-            await loadData();
-          } catch (e: any) {
-            Alert.alert('Cannot delete', e.message);
-          }
+    Alert.alert(
+      t('deleteCategory'),
+      t('deleteCategoryConfirm', { category: cat.name }),
+      [
+        { text: t('cancelText'), style: 'cancel' },
+        {
+          text: t('delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteCategory(cat.id);
+              await loadData();
+            } catch (e: any) {
+              Alert.alert(t('cannotDelete'), e.message);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const handleEdit = (cat: CategoryWithChildren) => {
@@ -435,10 +446,10 @@ const CategoryManagerScreen: React.FC<Props> = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.backBtn}>‹</Text>
           </TouchableOpacity>
-          <Text style={styles.topbarTitle}>Categories</Text>
+          <Text style={styles.topbarTitle}>{t('categories')}</Text>
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
-          <Text style={styles.addBtnText}>+ Add new</Text>
+          <Text style={styles.addBtnText}>{t('addNewCategory')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -449,7 +460,7 @@ const CategoryManagerScreen: React.FC<Props> = ({ navigation }) => {
         }
       >
         {tree.length === 0 && (
-          <Text style={styles.emptyText}>No categories yet. Add one!</Text>
+          <Text style={styles.emptyText}>{t('noCategoriesYet')}</Text>
         )}
 
         {/* Unlimited-depth tree (FR-CAT-04, extended per client request) */}

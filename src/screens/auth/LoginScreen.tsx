@@ -2,7 +2,7 @@
 // SmartPOS - Login / PIN Screen
 // Based on SRS NFR-SEC-01 and Section 2.4 (User Classes)
 
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,8 +11,9 @@ import {
   Alert,
   StatusBar,
 } from 'react-native';
-import {UserRole} from '../../types';
-import {verifyAdminPin, getSetting} from '../../database/settingsDAO';
+import { UserRole } from '../../types';
+import { verifyAdminPin, getSetting } from '../../database/settingsDAO';
+import { useTranslation } from '../../i18n';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -37,7 +38,8 @@ const COLORS = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const LoginScreen: React.FC<Props> = ({onLogin}) => {
+const LoginScreen: React.FC<Props> = ({ onLogin }) => {
+  const { t } = useTranslation();
   const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
   const [pin, setPin] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
@@ -74,7 +76,7 @@ const LoginScreen: React.FC<Props> = ({onLogin}) => {
         if (isValid) {
           onLogin('admin');
         } else {
-          Alert.alert('Incorrect PIN', 'Please try again.');
+          Alert.alert(t('incorrectPin'), t('pleaseTryAgain'));
           setPin('');
         }
       } else {
@@ -83,7 +85,7 @@ const LoginScreen: React.FC<Props> = ({onLogin}) => {
       }
     } catch (e) {
       console.error('Login error:', e);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      Alert.alert(t('error'), t('somethingWentWrong'));
       setPin('');
     } finally {
       setSubmitting(false);
@@ -111,13 +113,12 @@ const LoginScreen: React.FC<Props> = ({onLogin}) => {
         <View style={styles.logoBox}>
           <Text style={styles.logoIcon}>🏪</Text>
         </View>
-        <Text style={styles.appName}>SmartPOS</Text>
-        <Text style={styles.appSub}>Point of Sale System</Text>
+        <Text style={styles.appName}>{t('appTitle')}</Text>
+        <Text style={styles.appSub}>{t('pointOfSaleSystem')}</Text>
       </View>
 
       {/* PIN Area */}
       <View style={styles.pinArea}>
-
         {/* Role Tabs */}
         <View style={styles.roleTabs}>
           <TouchableOpacity
@@ -125,13 +126,15 @@ const LoginScreen: React.FC<Props> = ({onLogin}) => {
               styles.roleTab,
               selectedRole === 'admin' && styles.roleTabActive,
             ]}
-            onPress={() => handleRoleChange('admin')}>
+            onPress={() => handleRoleChange('admin')}
+          >
             <Text
               style={[
                 styles.roleTabText,
                 selectedRole === 'admin' && styles.roleTabTextActive,
-              ]}>
-              🔒 Admin
+              ]}
+            >
+              🔒 {t('admin')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -139,13 +142,15 @@ const LoginScreen: React.FC<Props> = ({onLogin}) => {
               styles.roleTab,
               selectedRole === 'cashier' && styles.roleTabActive,
             ]}
-            onPress={() => handleRoleChange('cashier')}>
+            onPress={() => handleRoleChange('cashier')}
+          >
             <Text
               style={[
                 styles.roleTabText,
                 selectedRole === 'cashier' && styles.roleTabTextActive,
-              ]}>
-              👤 Cashier
+              ]}
+            >
+              👤 {t('cashier')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -153,11 +158,11 @@ const LoginScreen: React.FC<Props> = ({onLogin}) => {
         {/* PIN label — only shown for Admin */}
         {selectedRole === 'admin' && (
           <>
-            <Text style={styles.pinLabel}>Enter your PIN</Text>
+            <Text style={styles.pinLabel}>{t('enterYourPin')}</Text>
 
             {/* PIN Dots */}
             <View style={styles.pinDots}>
-              {Array.from({length: PIN_LENGTH}).map((_, i) => (
+              {Array.from({ length: PIN_LENGTH }).map((_, i) => (
                 <View
                   key={i}
                   style={[styles.dot, i < pin.length && styles.dotFilled]}
@@ -172,7 +177,8 @@ const LoginScreen: React.FC<Props> = ({onLogin}) => {
                   key={key}
                   style={styles.key}
                   disabled={submitting}
-                  onPress={() => handleKeyPress(key)}>
+                  onPress={() => handleKeyPress(key)}
+                >
                   <Text style={styles.keyText}>{key}</Text>
                 </TouchableOpacity>
               ))}
@@ -181,20 +187,22 @@ const LoginScreen: React.FC<Props> = ({onLogin}) => {
               <TouchableOpacity
                 style={styles.key}
                 disabled={submitting}
-                onPress={() => handleKeyPress('0')}>
+                onPress={() => handleKeyPress('0')}
+              >
                 <Text style={styles.keyText}>0</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.key, styles.keyDelete]}
                 disabled={submitting}
-                onPress={handleDelete}>
+                onPress={handleDelete}
+              >
                 <Text style={styles.keyDeleteText}>⌫</Text>
               </TouchableOpacity>
             </View>
           </>
         )}
 
-        <Text style={styles.version}>SmartPOS v1.0 • POS-T8-3</Text>
+        <Text style={styles.version}>{t('version')}</Text>
       </View>
     </View>
   );

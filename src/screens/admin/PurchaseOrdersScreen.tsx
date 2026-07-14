@@ -18,6 +18,7 @@ import { getAllPurchaseOrders } from '../../database/purchaseOrderDAO';
 import { parseSqliteDateAsUtc } from '../../utils/dateTime';
 import { PurchaseOrder, AppSettings } from '../../types';
 import { getAllSettings } from '../../database/settingsDAO';
+import { useTranslation } from '../../i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ const COLORS = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const PurchaseOrdersScreen: React.FC<Props> = ({ navigation }) => {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<POWithCount[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -93,11 +95,15 @@ const PurchaseOrdersScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.info}>
         <Text style={styles.date}>{formatDate(item.created_at)}</Text>
         {item.supplier_note ? (
-          <Text style={styles.note}>Supplier: {item.supplier_note}</Text>
+          <Text style={styles.note}>
+            {t('supplierNote')}: {item.supplier_note}
+          </Text>
         ) : null}
       </View>
       <View style={styles.right}>
-        <Text style={styles.itemCount}>{item.item_count} items received</Text>
+        <Text style={styles.itemCount}>
+          {t('itemsReceived', { count: item.item_count })}
+        </Text>
         <Text style={styles.cost}>
           {settings?.primary_currency_symbol ?? '$'}
           {item.total_cost.toFixed(2)}
@@ -117,13 +123,13 @@ const PurchaseOrdersScreen: React.FC<Props> = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.backBtn}>‹</Text>
           </TouchableOpacity>
-          <Text style={styles.topbarTitle}>Purchase Orders</Text>
+          <Text style={styles.topbarTitle}>{t('purchaseOrders')}</Text>
         </View>
         <TouchableOpacity
           style={styles.newBtn}
           onPress={() => navigation.navigate('NewPurchaseOrder')}
         >
-          <Text style={styles.newBtnText}>+ New PO</Text>
+          <Text style={styles.newBtnText}>{t('newPO')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -135,7 +141,7 @@ const PurchaseOrdersScreen: React.FC<Props> = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No purchase orders yet</Text>
+          <Text style={styles.emptyText}>{t('noPurchaseOrdersYet')}</Text>
         }
         contentContainerStyle={styles.listContent}
       />

@@ -3,7 +3,7 @@
 // SmartPOS - Add / Edit Product Screen
 // Based on SRS Section 3.2 (FR-PRD) and Section 8
 
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,9 +14,9 @@ import {
   StatusBar,
   Alert,
 } from 'react-native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {RouteProp} from '@react-navigation/native';
-import {AdminStackParamList} from '../../navigation/AppNavigator';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
+import { AdminStackParamList } from '../../navigation/AppNavigator';
 import {
   getProductById,
   createProduct,
@@ -24,9 +24,10 @@ import {
   generateUniqueBarcode,
   isBarcodeUnique,
 } from '../../database/productDAO';
-import {getAllCategoriesFlat} from '../../database/categoryDAO';
-import {getAllSettings} from '../../database/settingsDAO';
-import {Category, AppSettings} from '../../types';
+import { getAllCategoriesFlat } from '../../database/categoryDAO';
+import { getAllSettings } from '../../database/settingsDAO';
+import { Category, AppSettings } from '../../types';
+import { useTranslation } from '../../i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,7 +54,8 @@ const COLORS = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
+const AddEditProductScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { t } = useTranslation();
   const productId = route.params?.productId;
   const isEdit = productId !== undefined;
 
@@ -117,9 +119,9 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
     try {
       const generated = await generateUniqueBarcode();
       setBarcode(generated);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
-      Alert.alert('Error', 'Could not generate barcode.');
+      Alert.alert(t('error'), t('somethingWentWrong'));
     }
   };
 
@@ -128,21 +130,24 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
 
     // Validate required fields (FR-PRD-01)
     if (!name.trim()) {
-      Alert.alert('Validation', 'Product name is required.');
+      Alert.alert(t('validationRequired'), t('productNameRequired'));
       return;
     }
     if (!categoryId) {
-      Alert.alert('Validation', 'Please select a category.');
+      Alert.alert(t('validationRequired'), t('categoryRequired'));
       return;
     }
     const parsedPrice = parseFloat(price);
     if (isNaN(parsedPrice) || parsedPrice < 0) {
-      Alert.alert('Validation', 'Please enter a valid price.');
+      Alert.alert(t('validationRequired'), t('validPrice'));
       return;
     }
     const parsedDiscount = discountPrice ? parseFloat(discountPrice) : null;
-    if (parsedDiscount !== null && (isNaN(parsedDiscount) || parsedDiscount < 0)) {
-      Alert.alert('Validation', 'Please enter a valid discount price.');
+    if (
+      parsedDiscount !== null &&
+      (isNaN(parsedDiscount) || parsedDiscount < 0)
+    ) {
+      Alert.alert(t('validationRequired'), t('validDiscountPrice'));
       return;
     }
 
@@ -150,9 +155,12 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
     try {
       // Validate barcode uniqueness (FR-PRD-08)
       if (barcode.trim()) {
-        const unique = await isBarcodeUnique(barcode.trim(), isEdit ? productId : undefined);
+        const unique = await isBarcodeUnique(
+          barcode.trim(),
+          isEdit ? productId : undefined,
+        );
         if (!unique) {
-          Alert.alert('Validation', 'This barcode already exists.');
+          Alert.alert(t('validationRequired'), t('barcodeAlreadyExists'));
           setSaving(false);
           return;
         }
@@ -182,7 +190,7 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
       }
       navigation.goBack();
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Could not save product.');
+      Alert.alert(t('error'), e.message ?? t('somethingWentWrong'));
     } finally {
       setSaving(false);
     }
@@ -196,7 +204,9 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.backBtn}>‹</Text>
           </TouchableOpacity>
-          <Text style={styles.topbarTitle}>{isEdit ? 'Edit product' : 'Add new product'}</Text>
+          <Text style={styles.topbarTitle}>
+            {isEdit ? t('editProduct') : t('addProduct')}
+          </Text>
         </View>
       </View>
     );
@@ -212,38 +222,42 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
           <Text style={styles.backBtn}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.topbarTitle}>
-          {isEdit ? 'Edit product' : 'Add new product'}
+          {isEdit ? t('editProduct') : t('addProduct')}
         </Text>
       </View>
 
       <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
-
         {/* Basic Info */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Basic info</Text>
+          <Text style={styles.cardTitle}>{t('basicInfo')}</Text>
 
           <View style={styles.field}>
             <Text style={styles.label}>
-              Product name <Text style={styles.required}>*</Text>
+              {t('productName')} <Text style={styles.required}>*</Text>
             </Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="e.g. Pepsi 500ml"
+              placeholder={t('productName')}
               placeholderTextColor={COLORS.textMuted}
             />
           </View>
 
           <View style={styles.field}>
             <Text style={styles.label}>
-              Category <Text style={styles.required}>*</Text>
+              {t('category')} <Text style={styles.required}>*</Text>
             </Text>
             <TouchableOpacity
               style={styles.input}
-              onPress={() => setShowCategoryPicker(!showCategoryPicker)}>
-              <Text style={selectedCategory ? styles.inputText : styles.placeholderText}>
-                {selectedCategory ? selectedCategory.name : 'Select category...'}
+              onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+            >
+              <Text
+                style={
+                  selectedCategory ? styles.inputText : styles.placeholderText
+                }
+              >
+                {selectedCategory ? selectedCategory.name : t('selectCategory')}
               </Text>
             </TouchableOpacity>
             {showCategoryPicker && (
@@ -255,7 +269,8 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
                     onPress={() => {
                       setCategoryId(cat.id);
                       setShowCategoryPicker(false);
-                    }}>
+                    }}
+                  >
                     <Text style={styles.pickerItemText}>{cat.name}</Text>
                   </TouchableOpacity>
                 ))}
@@ -264,12 +279,12 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Description</Text>
+            <Text style={styles.label}>{t('description')}</Text>
             <TextInput
               style={[styles.input, styles.textarea]}
               value={description}
               onChangeText={setDescription}
-              placeholder="Optional..."
+              placeholder={t('optional')}
               placeholderTextColor={COLORS.textMuted}
               multiline
               numberOfLines={3}
@@ -279,11 +294,11 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
 
         {/* Pricing */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Pricing</Text>
+          <Text style={styles.cardTitle}>{t('pricing')}</Text>
           <View style={styles.row2}>
-            <View style={[styles.field, {flex: 1}]}>
+            <View style={[styles.field, { flex: 1 }]}>
               <Text style={styles.label}>
-                Price <Text style={styles.required}>*</Text>
+                {t('price')} <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
                 style={styles.input}
@@ -294,8 +309,8 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
                 keyboardType="decimal-pad"
               />
             </View>
-            <View style={[styles.field, {flex: 1}]}>
-              <Text style={styles.label}>Discount price</Text>
+            <View style={[styles.field, { flex: 1 }]}>
+              <Text style={styles.label}>{t('discountPrice')}</Text>
               <TextInput
                 style={styles.input}
                 value={discountPrice}
@@ -308,11 +323,16 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
           </View>
           {/* Effective selling price (FR-PRD-09) */}
           <View style={styles.effectivePrice}>
-            <Text style={styles.effectivePriceLabel}>Effective selling price</Text>
+            <Text style={styles.effectivePriceLabel}>
+              {t('effectiveSellingPrice')}
+            </Text>
             <Text style={styles.effectivePriceValue}>
-              {settings?.primary_currency_symbol ?? '$'}{effectivePrice().toFixed(2)}
+              {settings?.primary_currency_symbol ?? '$'}
+              {effectivePrice().toFixed(2)}
               {settings?.secondary_currency_code
-                ? ` / ${(effectivePrice() * (settings?.exchange_rate ?? 1)).toLocaleString()} ${settings?.secondary_currency_symbol}`
+                ? ` / ${(
+                    effectivePrice() * (settings?.exchange_rate ?? 1)
+                  ).toLocaleString()} ${settings?.secondary_currency_symbol}`
                 : ''}
             </Text>
           </View>
@@ -320,21 +340,24 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
 
         {/* Barcode */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Barcode</Text>
+          <Text style={styles.cardTitle}>{t('barcodeSection')}</Text>
           <View style={styles.barcodeRow}>
-            <View style={[styles.field, {flex: 1}]}>
-              <Text style={styles.label}>Barcode</Text>
+            <View style={[styles.field, { flex: 1 }]}>
+              <Text style={styles.label}>{t('barcode')}</Text>
               <TextInput
                 style={styles.input}
                 value={barcode}
                 onChangeText={setBarcode}
-                placeholder="Enter manually or generate..."
+                placeholder={t('enterManuallyOrGenerate')}
                 placeholderTextColor={COLORS.textMuted}
               />
             </View>
             {/* Generate barcode (FR-PRD-05) */}
-            <TouchableOpacity style={styles.generateBtn} onPress={handleGenerateBarcode}>
-              <Text style={styles.generateBtnText}>⊞ Generate</Text>
+            <TouchableOpacity
+              style={styles.generateBtn}
+              onPress={handleGenerateBarcode}
+            >
+              <Text style={styles.generateBtnText}>{t('generate')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -343,14 +366,14 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
             Quantity can only increase via Purchase Orders (FR-PO-03). */}
         {isEdit && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Stock</Text>
+            <Text style={styles.cardTitle}>{t('stock')}</Text>
             <View style={styles.stockInfo}>
-              <Text style={styles.stockInfoLabel}>Current stock quantity</Text>
+              <Text style={styles.stockInfoLabel}>
+                {t('currentStockQuantity')}
+              </Text>
               <Text style={styles.stockInfoValue}>{existingStockQty}</Text>
             </View>
-            <Text style={styles.stockInfoNote}>
-              Stock can only be increased through Purchase Orders.
-            </Text>
+            <Text style={styles.stockInfoNote}>{t('stockNote')}</Text>
           </View>
         )}
 
@@ -358,19 +381,20 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={styles.cancelBtn}
-            onPress={() => navigation.goBack()}>
-            <Text style={styles.cancelBtnText}>Cancel</Text>
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.cancelBtnText}>{t('cancelText')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
             onPress={handleSave}
-            disabled={saving}>
+            disabled={saving}
+          >
             <Text style={styles.saveBtnText}>
-              {saving ? 'Saving...' : '💾 Save product'}
+              {saving ? t('saving') : t('saveProduct')}
             </Text>
           </TouchableOpacity>
         </View>
-
       </ScrollView>
     </View>
   );
@@ -379,7 +403,7 @@ const AddEditProductScreen: React.FC<Props> = ({navigation, route}) => {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: COLORS.background},
+  container: { flex: 1, backgroundColor: COLORS.background },
   topbar: {
     backgroundColor: COLORS.primary,
     flexDirection: 'row',
@@ -388,9 +412,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  backBtn: {color: '#fff', fontSize: 28, lineHeight: 32},
-  topbarTitle: {color: '#fff', fontSize: 16, fontWeight: '500'},
-  scroll: {flex: 1, padding: 12},
+  backBtn: { color: '#fff', fontSize: 28, lineHeight: 32 },
+  topbarTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
+  scroll: { flex: 1, padding: 12 },
   card: {
     backgroundColor: COLORS.white,
     borderRadius: 8,
@@ -407,9 +431,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  field: {gap: 4},
-  label: {fontSize: 11, color: COLORS.textSecondary},
-  required: {color: COLORS.required},
+  field: { gap: 4 },
+  label: { fontSize: 11, color: COLORS.textSecondary },
+  required: { color: COLORS.required },
   input: {
     backgroundColor: '#F3F4F6',
     borderWidth: 0.5,
@@ -420,10 +444,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.text,
   },
-  inputText: {fontSize: 12, color: COLORS.text},
-  placeholderText: {fontSize: 12, color: COLORS.textMuted},
-  textarea: {height: 70, textAlignVertical: 'top'},
-  row2: {flexDirection: 'row', gap: 8},
+  inputText: { fontSize: 12, color: COLORS.text },
+  placeholderText: { fontSize: 12, color: COLORS.textMuted },
+  textarea: { height: 70, textAlignVertical: 'top' },
+  row2: { flexDirection: 'row', gap: 8 },
   effectivePrice: {
     backgroundColor: '#F3F4F6',
     borderRadius: 8,
@@ -432,9 +456,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  effectivePriceLabel: {fontSize: 11, color: COLORS.textMuted},
-  effectivePriceValue: {fontSize: 12, fontWeight: '500', color: COLORS.primary},
-  barcodeRow: {flexDirection: 'row', gap: 8, alignItems: 'flex-end'},
+  effectivePriceLabel: { fontSize: 11, color: COLORS.textMuted },
+  effectivePriceValue: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: COLORS.primary,
+  },
+  barcodeRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-end' },
   generateBtn: {
     backgroundColor: COLORS.pillBg,
     borderRadius: 8,
@@ -442,8 +470,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 0,
   },
-  generateBtnText: {fontSize: 12, color: COLORS.primary, fontWeight: '500'},
-  actionRow: {flexDirection: 'row', gap: 8, marginBottom: 24},
+  generateBtnText: { fontSize: 12, color: COLORS.primary, fontWeight: '500' },
+  actionRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
   cancelBtn: {
     flex: 1,
     borderWidth: 0.5,
@@ -453,7 +481,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.white,
   },
-  cancelBtnText: {fontSize: 13, color: COLORS.textSecondary},
+  cancelBtnText: { fontSize: 13, color: COLORS.textSecondary },
   saveBtn: {
     flex: 2,
     backgroundColor: COLORS.primary,
@@ -461,8 +489,8 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: 'center',
   },
-  saveBtnDisabled: {opacity: 0.6},
-  saveBtnText: {fontSize: 13, fontWeight: '500', color: '#fff'},
+  saveBtnDisabled: { opacity: 0.6 },
+  saveBtnText: { fontSize: 13, fontWeight: '500', color: '#fff' },
   picker: {
     backgroundColor: COLORS.white,
     borderWidth: 0.5,
@@ -477,7 +505,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: '#F0F0F0',
   },
-  pickerItemText: {fontSize: 12, color: COLORS.text},
+  pickerItemText: { fontSize: 12, color: COLORS.text },
   stockInfo: {
     backgroundColor: '#F3F4F6',
     borderRadius: 8,
@@ -487,9 +515,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  stockInfoLabel: {fontSize: 11, color: COLORS.textSecondary},
-  stockInfoValue: {fontSize: 14, fontWeight: '600', color: COLORS.primary},
-  stockInfoNote: {fontSize: 10, color: COLORS.textMuted},
+  stockInfoLabel: { fontSize: 11, color: COLORS.textSecondary },
+  stockInfoValue: { fontSize: 14, fontWeight: '600', color: COLORS.primary },
+  stockInfoNote: { fontSize: 10, color: COLORS.textMuted },
 });
 
 export default AddEditProductScreen;

@@ -4,6 +4,7 @@
 import React, {useEffect, useState} from 'react';
 import {View, Text, ActivityIndicator, StyleSheet} from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
+import { TranslationProvider } from './src/i18n';
 import {initDatabase} from './src/database/database';
 
 const App = () => {
@@ -36,7 +37,11 @@ const App = () => {
     );
   }
 
-  return <AppNavigator />;
+  return (
+    <TranslationProvider>
+      <AppNavigator />
+    </TranslationProvider>
+  );
 };
 
 const styles = StyleSheet.create({

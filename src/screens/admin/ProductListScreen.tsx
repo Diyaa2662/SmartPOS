@@ -20,6 +20,7 @@ import { getAllProducts, deleteProduct } from '../../database/productDAO';
 import { getAllCategoriesFlat } from '../../database/categoryDAO';
 import { printProductLabel } from '../../utils/printerService';
 import { ProductWithCategory, Category } from '../../types';
+import { useTranslation } from '../../i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ const COLORS = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const ProductListScreen: React.FC<Props> = ({ navigation }) => {
+  const { t } = useTranslation();
   const [products, setProducts] = useState<ProductWithCategory[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState('');
@@ -86,12 +88,12 @@ const ProductListScreen: React.FC<Props> = ({ navigation }) => {
   const handleDelete = (product: ProductWithCategory) => {
     // FR-PRD-03 — confirmation prompt before delete
     Alert.alert(
-      'Delete product',
-      `Are you sure you want to delete "${product.name}"?`,
+      t('deleteProduct'),
+      t('deleteConfirmation', { product: product.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancelText'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -99,7 +101,7 @@ const ProductListScreen: React.FC<Props> = ({ navigation }) => {
               await loadData();
               // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (e) {
-              Alert.alert('Error', 'Could not delete product.');
+              Alert.alert(t('error'), t('somethingWentWrong'));
             }
           },
         },
@@ -110,21 +112,17 @@ const ProductListScreen: React.FC<Props> = ({ navigation }) => {
   const handlePrintLabel = async (product: ProductWithCategory) => {
     if (!product.barcode) {
       Alert.alert(
-        'Barcode missing',
-        `Product "${product.name}" does not have a barcode to print.`,
+        t('barcodeMissing'),
+        t('productHasNoBarcode', { product: product.name }),
       );
       return;
     }
 
     try {
       await printProductLabel(product.name, product.barcode);
-      Alert.alert('Printing', `Printing label for "${product.name}"...`);
+      Alert.alert(t('printing'), t('printingLabel', { product: product.name }));
     } catch (e: any) {
-      Alert.alert(
-        'Print Error',
-        e?.message ||
-          'Could not print the barcode label. Please check the printer.',
-      );
+      Alert.alert(t('printError'), e?.message || t('couldNotPrintBarcode'));
     }
   };
 
@@ -157,7 +155,7 @@ const ProductListScreen: React.FC<Props> = ({ navigation }) => {
             item.stock_qty <= 5 ? styles.stockLow : styles.stockOk,
           ]}
         >
-          Stock: {item.stock_qty}
+          {t('stock')}: {item.stock_qty}
           {item.stock_qty <= 5 ? ' ⚠️' : ''}
         </Text>
       </View>
@@ -202,13 +200,13 @@ const ProductListScreen: React.FC<Props> = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.backBtn}>‹</Text>
           </TouchableOpacity>
-          <Text style={styles.topbarTitle}>Products</Text>
+          <Text style={styles.topbarTitle}>{t('products')}</Text>
         </View>
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() => navigation.navigate('AddEditProduct', {})}
         >
-          <Text style={styles.addBtnText}>+ Add new</Text>
+          <Text style={styles.addBtnText}>{t('addNew')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -218,7 +216,7 @@ const ProductListScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by name, category, barcode..."
+            placeholder={t('searchByNameCategoryBarcode')}
             placeholderTextColor={COLORS.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -241,7 +239,7 @@ const ProductListScreen: React.FC<Props> = ({ navigation }) => {
               selectedCategory === undefined && styles.pillTextActive,
             ]}
           >
-            All
+            {t('all')}
           </Text>
         </TouchableOpacity>
         {categories.map(cat => (
@@ -274,7 +272,7 @@ const ProductListScreen: React.FC<Props> = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No products found</Text>
+          <Text style={styles.emptyText}>{t('noProductsFound')}</Text>
         }
         contentContainerStyle={styles.listContent}
       />

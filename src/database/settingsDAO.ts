@@ -55,6 +55,7 @@ export const getAllSettings = async (): Promise<AppSettings> => {
     receipt_footer: map.receipt_footer ?? '',
     receipt_show_qr: map.receipt_show_qr === 'true',
     admin_pin_hash: map.admin_pin_hash ?? '',
+    language: map.language ?? 'en',
   };
 };
 
@@ -122,6 +123,12 @@ export const saveAllSettings = async (
       await tx.execute(
         'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?);',
         ['receipt_show_qr', settings.receipt_show_qr.toString()],
+      );
+    }
+    if (settings.language !== undefined) {
+      await tx.execute(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?);',
+        ['language', settings.language],
       );
     }
   });

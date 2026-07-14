@@ -24,6 +24,7 @@ import { getAllProducts, getProductByBarcode } from '../../database/productDAO';
 import { getAllCategoriesFlat } from '../../database/categoryDAO';
 import { getAllSettings } from '../../database/settingsDAO';
 import { Product, Category, CartItem, AppSettings } from '../../types';
+import { useTranslation } from '../../i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,7 @@ const getEffectivePrice = (product: Product): number => {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
+  const { t } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -158,9 +160,9 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
   const handleVoidSale = () => {
     if (cart.length === 0) return;
     // FR-SAL-12 — void/cancel current transaction before finalized
-    Alert.alert('Void sale', 'Clear the current cart?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Void', style: 'destructive', onPress: () => setCart([]) },
+    Alert.alert(t('voidSale'), t('confirmVoidSale'), [
+      { text: t('cancelText'), style: 'cancel' },
+      { text: t('voidSale'), style: 'destructive', onPress: () => setCart([]) },
     ]);
   };
 
@@ -169,7 +171,8 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
     if (!trimmedCode) return;
 
     // If the user is manually searching for a product name, do not show an error.
-    const isLikelyBarcode = !trimmedCode.includes(' ') && trimmedCode.length >= 3;
+    const isLikelyBarcode =
+      !trimmedCode.includes(' ') && trimmedCode.length >= 3;
     if (!isLikelyBarcode) return;
 
     try {
@@ -184,8 +187,8 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
       } else {
         // FR-SAL-11 — barcode not found
         Alert.alert(
-          'Product not found',
-          `No product matches barcode "${trimmedCode}".`,
+          t('noProductFound'),
+          t('productNotFoundBarcode', { barcode: trimmedCode }),
         );
       }
     } catch (e) {
@@ -255,7 +258,7 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
 
       {/* Top Bar */}
       <View style={styles.topbar}>
-        <Text style={styles.topbarTitle}>Sales</Text>
+        <Text style={styles.topbarTitle}>{t('sales')}</Text>
         {onLogout ? (
           <TouchableOpacity onPress={onLogout}>
             <Text style={styles.topbarIcon}>🚪</Text>
@@ -282,11 +285,13 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
             <TextInput
               ref={searchInputRef}
               style={styles.searchInput}
-              placeholder="Search or scan barcode..."
+              placeholder={t('searchOrScanBarcode')}
               placeholderTextColor={COLORS.textMuted}
               value={search}
               onChangeText={setSearch}
-              onSubmitEditing={event => handleBarcodeSubmit(event.nativeEvent.text)}
+              onSubmitEditing={event =>
+                handleBarcodeSubmit(event.nativeEvent.text)
+              }
               returnKeyType="search"
               autoCapitalize="none"
               autoCorrect={false}
@@ -320,7 +325,7 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
                 selectedCategory === undefined && styles.catPillTextActive,
               ]}
             >
-              All
+              {t('all')}
             </Text>
           </TouchableOpacity>
           {categories.map(cat => (
@@ -354,15 +359,17 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
             style={styles.productList}
             contentContainerStyle={styles.productListContent}
             ListEmptyComponent={
-              <Text style={styles.emptyText}>No products found</Text>
+              <Text style={styles.emptyText}>{t('noProductsFound')}</Text>
             }
           />
 
           {/* Cart */}
           <View style={styles.cart}>
             <View style={styles.cartHeader}>
-              <Text style={styles.cartTitle}>Cart</Text>
-              <Text style={styles.cartCount}>{cart.length} items</Text>
+              <Text style={styles.cartTitle}>{t('cart')}</Text>
+              <Text style={styles.cartCount}>
+                {t('items', { count: cart.length })}
+              </Text>
             </View>
 
             <FlatList
@@ -370,7 +377,7 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
               keyExtractor={item => item.product.id.toString()}
               style={styles.cartItems}
               ListEmptyComponent={
-                <Text style={styles.cartEmptyText}>Cart is empty</Text>
+                <Text style={styles.cartEmptyText}>{t('cartIsEmpty')}</Text>
               }
               renderItem={({ item }) => (
                 <View style={styles.cartItem}>
@@ -410,7 +417,7 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
 
             <View style={styles.cartFooter}>
               <View style={styles.cfRow}>
-                <Text style={styles.cfLabel}>Subtotal</Text>
+                <Text style={styles.cfLabel}>{t('subtotal')}</Text>
                 <Text style={styles.cfValue}>
                   {settings?.primary_currency_symbol ?? '$'}
                   {fullTotal.toFixed(2)}
@@ -418,7 +425,7 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
               </View>
               {discountAmount > 0 && (
                 <View style={styles.cfRow}>
-                  <Text style={styles.cfLabel}>Discount</Text>
+                  <Text style={styles.cfLabel}>{t('discount')}</Text>
                   <Text style={styles.cfDiscount}>
                     -{settings?.primary_currency_symbol ?? '$'}
                     {discountAmount.toFixed(2)}
@@ -426,7 +433,7 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
                 </View>
               )}
               <View style={styles.cfRow}>
-                <Text style={styles.cfTotalLabel}>Total</Text>
+                <Text style={styles.cfTotalLabel}>{t('total')}</Text>
                 <Text style={styles.cfTotalValue}>
                   {settings?.primary_currency_symbol ?? '$'}
                   {subtotal.toFixed(2)}
@@ -439,7 +446,7 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
               ) : null}
 
               <TouchableOpacity style={styles.voidBtn} onPress={handleVoidSale}>
-                <Text style={styles.voidBtnText}>✕ Void sale</Text>
+                <Text style={styles.voidBtnText}>{t('voidSale')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -449,7 +456,7 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
                 onPress={handleCheckout}
                 disabled={cart.length === 0}
               >
-                <Text style={styles.checkoutBtnText}>Checkout ›</Text>
+                <Text style={styles.checkoutBtnText}>{t('checkout')}</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -33,6 +33,7 @@ import {
 import { getAllSettings } from '../../database/settingsDAO';
 import { parseSqliteDateAsUtc } from '../../utils/dateTime';
 import { Transaction, TransactionWithItems, AppSettings } from '../../types';
+import { useTranslation } from '../../i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,11 +66,14 @@ const COLORS = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { t } = useTranslation();
   const { transactionId, returnTo } =
-    (route.params as {
-      transactionId?: number;
-      returnTo?: 'Sales' | 'Dashboard';
-    } | undefined) ?? {};
+    (route.params as
+      | {
+          transactionId?: number;
+          returnTo?: 'Sales' | 'Dashboard';
+        }
+      | undefined) ?? {};
 
   const [receipt, setReceipt] = useState<TransactionWithItems | null>(null);
   const [history, setHistory] = useState<Transaction[]>([]);
@@ -116,6 +120,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
     return unsubscribe;
   }, [navigation, returnTo]);
 
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   const handleReprint = async (transactionId?: number) => {
     if (!settings) return;
 
@@ -127,10 +132,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
       if (!targetReceipt) return;
       await printReceipt(targetReceipt, settings, printCurrency === 'primary');
     } catch (e) {
-      Alert.alert(
-        'Print Error',
-        'Could not print receipt. Make sure printer is ready.',
-      );
+      Alert.alert(t('printingError'), t('printErrorDetails'));
     }
   };
 
@@ -184,7 +186,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.backBtn}>‹</Text>
           </TouchableOpacity>
-          <Text style={styles.topbarTitle}>Receipt Preview</Text>
+          <Text style={styles.topbarTitle}>{t('receiptPreview')}</Text>
         </View>
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -210,20 +212,20 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
         <TouchableOpacity onPress={handleBackPress}>
           <Text style={styles.backBtn}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.topbarTitle}>Receipt Preview</Text>
+        <Text style={styles.topbarTitle}>{t('receiptPreview')}</Text>
       </View>
 
       <ScrollView style={styles.scroll}>
         {!receipt ? (
           <View style={styles.card}>
-            <Text style={styles.emptyText}>No receipts yet.</Text>
+            <Text style={styles.emptyText}>{t('noReceiptsYet')}</Text>
           </View>
         ) : (
           <>
             {/* Print currency toggle — client-requested addition */}
             {canPrintSecondary && (
               <View style={styles.card}>
-                <Text style={styles.toggleLabel}>Print currency</Text>
+                <Text style={styles.toggleLabel}>{t('printCurrency')}</Text>
                 <View style={styles.currencyToggle}>
                   <TouchableOpacity
                     style={[
@@ -268,20 +270,20 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
             {/* Receipt paper (FR-PRT-02, FR-PRT-05) */}
             <View style={styles.receipt}>
               <Text style={styles.rStore}>
-                {settings?.store_name ?? 'My Store'}
+                {settings?.store_name ?? t('store')}
               </Text>
               <View style={styles.rDivider} />
               <Text style={styles.rMeta}>
                 {formatDateTime(receipt.created_at)}
                 {'\n'}
-                Transaction #TXN-{String(receipt.id).padStart(6, '0')}
+                {t('receiptHistory')} #{String(receipt.id).padStart(6, '0')}
                 {printCurrency === 'secondary'
                   ? `\nPrinted in ${currencyCode}`
                   : ''}
               </Text>
               <View style={styles.rDivider} />
 
-              <Text style={styles.rSectionTitle}>Items</Text>
+              <Text style={styles.rSectionTitle}>{t('itemsSection')}</Text>
               {receipt.items.map(item => (
                 <View key={item.id} style={styles.rItem}>
                   <Text style={styles.rItemName} numberOfLines={1}>
@@ -297,7 +299,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
 
               <View style={styles.rDivider} />
               <View style={styles.rTotalRow}>
-                <Text style={styles.rLabel}>Subtotal</Text>
+                <Text style={styles.rLabel}>{t('subtotalLabel')}</Text>
                 <Text style={styles.rValue}>
                   {symbol}
                   {convert(receipt.total_amount).toFixed(2)}
@@ -305,7 +307,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
               {receipt.discount_amount > 0 && (
                 <View style={styles.rTotalRow}>
-                  <Text style={styles.rLabel}>Discount</Text>
+                  <Text style={styles.rLabel}>{t('discountLabel')}</Text>
                   <Text style={styles.rDiscount}>
                     -{symbol}
                     {convert(receipt.discount_amount).toFixed(2)}
@@ -313,7 +315,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                 </View>
               )}
               <View style={styles.rTotalRow}>
-                <Text style={styles.rGrandLabel}>Total</Text>
+                <Text style={styles.rGrandLabel}>{t('total')}</Text>
                 <Text style={styles.rGrandValue}>
                   {symbol}
                   {convert(receipt.grand_total).toFixed(2)}
@@ -342,7 +344,9 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                 <>
                   <View style={styles.rTotalRow}>
                     <Text style={styles.rLabel}>
-                      Paid in {receipt.primary_currency_code}
+                      {t('amountIn', {
+                        currency: receipt.primary_currency_code,
+                      })}
                     </Text>
                     <Text style={styles.rValue}>
                       {settings?.primary_currency_symbol ?? '$'}
@@ -351,7 +355,9 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                   </View>
                   <View style={styles.rTotalRow}>
                     <Text style={styles.rLabel}>
-                      Paid in {receipt.secondary_currency_code}
+                      {t('amountIn', {
+                        currency: receipt.secondary_currency_code ?? '',
+                      })}
                     </Text>
                     <Text style={styles.rValue}>
                       {settings?.secondary_currency_symbol ?? ''}
@@ -361,7 +367,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                 </>
               ) : (
                 <View style={styles.rTotalRow}>
-                  <Text style={styles.rLabel}>Tendered</Text>
+                  <Text style={styles.rLabel}>{t('tendered')}</Text>
                   <Text style={styles.rValue}>
                     {symbol}
                     {convert(receipt.amount_tendered).toFixed(2)}
@@ -369,7 +375,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                 </View>
               )}
               <View style={styles.rTotalRow}>
-                <Text style={styles.rLabel}>Change</Text>
+                <Text style={styles.rLabel}>{t('change')}</Text>
                 <Text style={styles.rValue}>
                   {symbol}
                   {convert(receipt.change_due).toFixed(2)}
@@ -378,14 +384,14 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
 
               <View style={styles.rDivider} />
               <Text style={styles.rFooter}>
-                {settings?.receipt_footer || 'Thank you for shopping!'}
+                {settings?.receipt_footer || t('thankYou')}
                 {receipt.secondary_currency_code &&
                 receipt.exchange_rate_snapshot
-                  ? `\nRate: 1 ${
-                      receipt.primary_currency_code
-                    } = ${receipt.exchange_rate_snapshot.toLocaleString()} ${
-                      receipt.secondary_currency_code
-                    }`
+                  ? `\n${t('rateUsed', {
+                      primary: receipt.primary_currency_code,
+                      rate: receipt.exchange_rate_snapshot.toLocaleString(),
+                      secondary: receipt.secondary_currency_code,
+                    })}`
                   : ''}
               </Text>
             </View>
@@ -396,8 +402,8 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
               onPress={() => handleReprint()}
             >
               <Text style={styles.reprintBtnText}>
-                🖨️ Reprint receipt{' '}
-                {canPrintSecondary ? `(${currencyCode})` : ''}
+                {t('reprintReceipt')}
+                {canPrintSecondary ? ` (${currencyCode})` : ''}
               </Text>
             </TouchableOpacity>
           </>
@@ -406,7 +412,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Past receipts (FR-PRT-03) */}
         {history.length > 0 && (
           <>
-            <Text style={styles.historyLabel}>Past receipts</Text>
+            <Text style={styles.historyLabel}>{t('pastReceipts')}</Text>
             <View style={styles.histCard}>
               {history.map(tx => (
                 <TouchableOpacity
@@ -415,7 +421,7 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
                   onPress={() => handleSelectHistory(tx.id)}
                 >
                   <Text style={styles.histId}>
-                    #TXN-{String(tx.id).padStart(3, '0')}
+                    #{String(tx.id).padStart(3, '0')}
                   </Text>
                   <Text style={styles.histDate}>
                     {formatDateTime(tx.created_at)}

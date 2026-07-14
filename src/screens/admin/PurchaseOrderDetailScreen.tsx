@@ -20,6 +20,7 @@ import { getPurchaseOrderById } from '../../database/purchaseOrderDAO';
 import { getAllSettings } from '../../database/settingsDAO';
 import { parseSqliteDateAsUtc } from '../../utils/dateTime';
 import { PurchaseOrderWithItems, AppSettings } from '../../types';
+import { useTranslation } from '../../i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ const COLORS = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const PurchaseOrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { t } = useTranslation();
   const { purchaseOrderId } = route.params;
   const [po, setPo] = useState<PurchaseOrderWithItems | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -90,10 +92,10 @@ const PurchaseOrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backBtn}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.topbarTitle}>Purchase Order Detail</Text>
+        <Text style={styles.topbarTitle}>{t('purchaseOrderDetail')}</Text>
         {/* Read-only badge (FR-PO-06) */}
         <View style={styles.readonlyBadge}>
-          <Text style={styles.readonlyText}>Read-only</Text>
+          <Text style={styles.readonlyText}>{t('readOnly')}</Text>
         </View>
       </View>
 
@@ -103,44 +105,52 @@ const PurchaseOrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
       ) : !po ? (
         <View style={styles.loadingBox}>
-          <Text style={styles.emptyText}>Purchase order not found.</Text>
+          <Text style={styles.emptyText}>{t('purchaseOrderNotFound')}</Text>
         </View>
       ) : (
         <ScrollView style={styles.scroll}>
           {/* Order Info */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Order info</Text>
+            <Text style={styles.cardTitle}>{t('orderInfo')}</Text>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>PO number</Text>
+              <Text style={styles.infoLabel}>{t('poNumber')}</Text>
               <Text style={styles.infoValue}>{po.po_number}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Date</Text>
+              <Text style={styles.infoLabel}>{t('date')}</Text>
               <Text style={styles.infoValue}>
                 {formatDateTime(po.created_at)}
               </Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Supplier note</Text>
+              <Text style={styles.infoLabel}>{t('supplierNote')}</Text>
               <Text style={styles.infoValue}>{po.supplier_note ?? '—'}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Items received</Text>
-              <Text style={styles.infoValue}>{po.items.length} items</Text>
+              <Text style={styles.infoLabel}>
+                {t('itemsReceived', { count: po.items.length })}
+              </Text>
+              <Text style={styles.infoValue}>
+                {po.items.length} {t('items')}
+              </Text>
             </View>
           </View>
 
           {/* Items table */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Items</Text>
+            <Text style={styles.cardTitle}>{t('itemsHeader')}</Text>
             <View style={styles.tableHeader}>
-              <Text style={[styles.tableHeaderText, { flex: 1 }]}>Product</Text>
-              <Text style={[styles.tableHeaderText, styles.colQty]}>Qty</Text>
+              <Text style={[styles.tableHeaderText, { flex: 1 }]}>
+                {t('product')}
+              </Text>
+              <Text style={[styles.tableHeaderText, styles.colQty]}>
+                {t('qty')}
+              </Text>
               <Text style={[styles.tableHeaderText, styles.colPrice]}>
-                Unit cost
+                {t('unitCost')}
               </Text>
               <Text style={[styles.tableHeaderText, styles.colCost]}>
-                Line cost
+                {t('lineCost')}
               </Text>
             </View>
             {po.items.map(item => (
@@ -165,7 +175,7 @@ const PurchaseOrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
           {/* Total */}
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total cost</Text>
+            <Text style={styles.totalLabel}>{t('totalCost')}</Text>
             <Text style={styles.totalValue}>
               {symbol}
               {po.total_cost.toFixed(2)}

@@ -29,6 +29,7 @@ import {
 } from '../../database/transactionDAO';
 import { getAllSettings } from '../../database/settingsDAO';
 import { CartItem, AppSettings } from '../../types';
+import { useTranslation } from '../../i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,7 @@ const COLORS = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { t } = useTranslation();
   const { cartItems, subtotal, discountAmount, grandTotal } = route.params as {
     cartItems: CartItem[];
     subtotal: number;
@@ -129,10 +131,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
     if (saving) return;
 
     if (combinedTendered < grandTotal) {
-      Alert.alert(
-        'Insufficient amount',
-        'Amount tendered is less than the total due.',
-      );
+      Alert.alert(t('insufficientAmount'), t('amountTenderedIsLess'));
       return;
     }
 
@@ -159,8 +158,10 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         }
       } catch (e: any) {
         Alert.alert(
-          'Print Error',
-          `${e?.message ?? 'Unknown error'}\n\nCode: ${e?.code ?? 'none'}`,
+          t('printingError'),
+          `${e?.message ?? t('printErrorDetails')}\n\nCode: ${
+            e?.code ?? 'none'
+          }`,
         );
       }
 
@@ -169,7 +170,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         returnTo: 'Sales',
       });
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Could not complete the sale.');
+      Alert.alert(t('error'), e.message ?? t('somethingWentWrong'));
     } finally {
       setSaving(false);
     }
@@ -186,16 +187,16 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         <TouchableOpacity onPress={handleCancel}>
           <Text style={styles.backBtn}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.topbarTitle}>Checkout</Text>
+        <Text style={styles.topbarTitle}>{t('checkout')}</Text>
       </View>
 
       <ScrollView style={styles.scroll}>
         {/* Order Summary (FR-SAL-04) */}
         <View style={styles.card}>
           <View style={styles.orderHeader}>
-            <Text style={styles.orderHeaderTitle}>Order summary</Text>
+            <Text style={styles.orderHeaderTitle}>{t('orderSummary')}</Text>
             <Text style={styles.orderHeaderCount}>
-              {cartItems.length} items
+              {t('items', { count: cartItems.length })}
             </Text>
           </View>
           {cartItems.map(item => (
@@ -215,7 +216,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Totals (FR-SAL-07) */}
         <View style={styles.card}>
           <View style={styles.tRow}>
-            <Text style={styles.tLabel}>Subtotal</Text>
+            <Text style={styles.tLabel}>{t('subtotal')}</Text>
             <Text style={styles.tValue}>
               {symbol}
               {subtotal.toFixed(2)}
@@ -223,7 +224,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
           {discountAmount > 0 && (
             <View style={styles.tRow}>
-              <Text style={styles.tLabel}>Discount</Text>
+              <Text style={styles.tLabel}>{t('discount')}</Text>
               <Text style={styles.tDiscount}>
                 -{symbol}
                 {discountAmount.toFixed(2)}
@@ -232,7 +233,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
           <View style={styles.divider} />
           <View style={styles.tRow}>
-            <Text style={styles.tGrandLabel}>Grand total</Text>
+            <Text style={styles.tGrandLabel}>{t('total')}</Text>
             <Text style={styles.tGrandValue}>
               {symbol}
               {grandTotal.toFixed(2)}
@@ -248,7 +249,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Payment mode toggle — client-requested addition (only when a secondary currency is configured) */}
         {hasSecondary && (
           <View style={styles.card}>
-            <Text style={styles.inputLabel}>Payment method</Text>
+            <Text style={styles.inputLabel}>{t('paymentMethod')}</Text>
             <View style={styles.modeToggle}>
               <TouchableOpacity
                 style={[
@@ -263,7 +264,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
                     paymentMode === 'single' && styles.modeOptionTextActive,
                   ]}
                 >
-                  Single currency
+                  {t('singleCurrency')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -279,7 +280,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
                     paymentMode === 'mixed' && styles.modeOptionTextActive,
                   ]}
                 >
-                  Mixed currency
+                  {t('mixedCurrency')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -290,7 +291,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         <View style={styles.card}>
           {paymentMode === 'single' ? (
             <>
-              <Text style={styles.inputLabel}>Amount tendered</Text>
+              <Text style={styles.inputLabel}>{t('amountTendered')}</Text>
               <TouchableOpacity
                 style={[
                   styles.inputBox,
@@ -310,7 +311,9 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
           ) : (
             <>
               <Text style={styles.inputLabel}>
-                Amount in {settings?.primary_currency_code}
+                {t('amountIn', {
+                  currency: settings?.primary_currency_code ?? 'USD',
+                })}
               </Text>
               <TouchableOpacity
                 style={[
@@ -329,7 +332,9 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
               </TouchableOpacity>
 
               <Text style={[styles.inputLabel, { marginTop: 8 }]}>
-                Amount in {settings?.secondary_currency_code}
+                {t('amountIn', {
+                  currency: settings?.secondary_currency_code ?? '',
+                })}
               </Text>
               <TouchableOpacity
                 style={[
@@ -349,7 +354,9 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
 
               <View style={styles.combinedBox}>
                 <Text style={styles.combinedLabel}>
-                  Combined (in {settings?.primary_currency_code})
+                  {t('combinedPrimary', {
+                    currency: settings?.primary_currency_code ?? 'USD',
+                  })}
                 </Text>
                 <Text style={styles.combinedValue}>
                   {symbol}
@@ -360,7 +367,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
 
           <View style={styles.changeBox}>
-            <Text style={styles.changeLabel}>💰 Change due</Text>
+            <Text style={styles.changeLabel}>{t('changeDue')}</Text>
             <Text style={styles.changeVal}>
               {symbol}
               {Math.max(0, changeDue).toFixed(2)}
@@ -402,7 +409,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Actions */}
         <View style={styles.actionRow}>
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
-            <Text style={styles.cancelBtnText}>✕ Cancel</Text>
+            <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.confirmBtn, saving && styles.confirmBtnDisabled]}
@@ -410,7 +417,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
             disabled={saving}
           >
             <Text style={styles.confirmBtnText}>
-              {saving ? 'Saving...' : '✓ Confirm sale & print'}
+              {saving ? t('saving') : t('confirmSalePrint')}
             </Text>
           </TouchableOpacity>
         </View>

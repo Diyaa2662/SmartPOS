@@ -24,6 +24,7 @@ import {
   getSetting,
 } from '../../database/settingsDAO';
 import { AppSettings } from '../../types';
+import { useTranslation } from '../../i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ const COLORS = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const SettingsScreen: React.FC<Props> = ({ navigation }) => {
+  const { t, language, setLanguage } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -95,25 +97,22 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
     // Validate exchange rate (FR-CUR-09)
     const rate = parseFloat(exchangeRate);
     if (secondaryCode.trim() && (isNaN(rate) || rate <= 0)) {
-      Alert.alert('Validation', 'Exchange rate must be greater than 0.');
+      Alert.alert(t('error'), t('validationExchangeGreaterThanZero'));
       return;
     }
 
     // Validate PIN if entered
     if (newPin || confirmPin) {
       if (newPin.length !== 4) {
-        Alert.alert('Validation', 'PIN must be exactly 4 digits.');
+        Alert.alert(t('error'), t('validationPin4Digits'));
         return;
       }
       if (newPin !== confirmPin) {
-        Alert.alert('Validation', 'PIN and confirmation do not match.');
+        Alert.alert(t('error'), t('validationPinMismatch'));
         return;
       }
     } else if (!hasExistingPin) {
-      Alert.alert(
-        'Validation',
-        'Please set an admin PIN before saving (required for Dashboard access).',
-      );
+      Alert.alert(t('error'), t('validationSetAdminPin'));
       return;
     }
 
@@ -140,9 +139,9 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
         setConfirmPin('');
       }
 
-      Alert.alert('Success', 'Settings saved successfully.');
+      Alert.alert(t('appTitle'), t('successSettingsSaved'));
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Could not save settings.');
+      Alert.alert(t('error'), e.message ?? t('somethingWentWrong'));
     } finally {
       setSaving(false);
     }
@@ -156,7 +155,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.backBtn}>‹</Text>
           </TouchableOpacity>
-          <Text style={styles.topbarTitle}>Settings</Text>
+          <Text style={styles.topbarTitle}>{t('settings')}</Text>
         </View>
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -174,15 +173,15 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backBtn}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.topbarTitle}>Settings</Text>
+        <Text style={styles.topbarTitle}>{t('settings')}</Text>
       </View>
 
       <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
         {/* Store */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Store</Text>
+          <Text style={styles.cardTitle}>{t('store')}</Text>
           <View style={styles.field}>
-            <Text style={styles.label}>Store name</Text>
+            <Text style={styles.label}>{t('storeName')}</Text>
             <TextInput
               style={styles.input}
               value={storeName}
@@ -191,23 +190,62 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
           <View style={styles.field}>
-            <Text style={styles.label}>Receipt footer</Text>
+            <Text style={styles.label}>{t('receiptFooter')}</Text>
             <TextInput
               style={styles.input}
               value={receiptFooter}
               onChangeText={setReceiptFooter}
-              placeholder="e.g. Thank you for shopping!"
+              placeholder={t('thankYou')}
               placeholderTextColor={COLORS.textMuted}
             />
           </View>
         </View>
 
+        {/* Language selection */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t('language')}</Text>
+          <View style={styles.languageToggle}>
+            <TouchableOpacity
+              style={[
+                styles.langOption,
+                language === 'en' && styles.langOptionActive,
+              ]}
+              onPress={() => setLanguage('en')}
+            >
+              <Text
+                style={[
+                  styles.langOptionText,
+                  language === 'en' && styles.langOptionTextActive,
+                ]}
+              >
+                {t('english')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.langOption,
+                language === 'ar' && styles.langOptionActive,
+              ]}
+              onPress={() => setLanguage('ar')}
+            >
+              <Text
+                style={[
+                  styles.langOptionText,
+                  language === 'ar' && styles.langOptionTextActive,
+                ]}
+              >
+                {t('arabic')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Primary currency (FR-CUR-01) */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Primary currency</Text>
+          <Text style={styles.cardTitle}>{t('primaryCurrency')}</Text>
           <View style={styles.row2}>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.label}>Currency code</Text>
+              <Text style={styles.label}>{t('currencyCode')}</Text>
               <TextInput
                 style={styles.input}
                 value={primaryCode}
@@ -218,7 +256,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
               />
             </View>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.label}>Symbol</Text>
+              <Text style={styles.label}>{t('symbol')}</Text>
               <TextInput
                 style={styles.input}
                 value={primarySymbol}
@@ -232,10 +270,10 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* Secondary currency (FR-CUR-02) */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Secondary currency</Text>
+          <Text style={styles.cardTitle}>{t('secondaryCurrency')}</Text>
           <View style={styles.row2}>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.label}>Currency code</Text>
+              <Text style={styles.label}>{t('currencyCode')}</Text>
               <TextInput
                 style={styles.input}
                 value={secondaryCode}
@@ -246,7 +284,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
               />
             </View>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.label}>Symbol</Text>
+              <Text style={styles.label}>{t('symbol')}</Text>
               <TextInput
                 style={styles.input}
                 value={secondarySymbol}
@@ -258,7 +296,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
           </View>
           <View style={styles.field}>
             <Text style={styles.label}>
-              Exchange rate — 1 {primaryCode || 'primary'} =
+              {t('exchangeRate', { primary: primaryCode || 'primary' })}
             </Text>
             <TextInput
               style={styles.input}
@@ -271,27 +309,25 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
           </View>
           {/* Warning (FR-CUR-09) */}
           <View style={styles.warning}>
-            <Text style={styles.warningText}>
-              ⚠️ Rate cannot be 0 or negative
-            </Text>
+            <Text style={styles.warningText}>{t('rateCannotBeZero')}</Text>
           </View>
           {rateUpdatedAt ? (
             <Text style={styles.lastUpdated}>
-              Last updated: {new Date(rateUpdatedAt).toLocaleString()}
+              {t('lastUpdated', {
+                date: new Date(rateUpdatedAt).toLocaleString(),
+              })}
             </Text>
           ) : null}
         </View>
 
         {/* Admin PIN (NFR-SEC-01, NFR-SEC-03) */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Admin PIN</Text>
+          <Text style={styles.cardTitle}>{t('adminPin')}</Text>
           {hasExistingPin && (
-            <Text style={styles.pinNote}>
-              PIN is set. Enter a new PIN below to change it.
-            </Text>
+            <Text style={styles.pinNote}>{t('pinIsSet')}</Text>
           )}
           <View style={styles.field}>
-            <Text style={styles.label}>New PIN (4 digits)</Text>
+            <Text style={styles.label}>{t('newPin')}</Text>
             <TextInput
               style={styles.input}
               value={newPin}
@@ -305,7 +341,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
           <View style={styles.field}>
-            <Text style={styles.label}>Confirm PIN</Text>
+            <Text style={styles.label}>{t('confirmPin')}</Text>
             <TextInput
               style={styles.input}
               value={confirmPin}
@@ -326,7 +362,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
           disabled={saving}
         >
           <Text style={styles.saveBtnText}>
-            {saving ? 'Saving...' : '💾 Save settings'}
+            {saving ? t('saving') : t('saveSettings')}
           </Text>
         </TouchableOpacity>
 
@@ -400,6 +436,26 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { fontSize: 13, fontWeight: '500', color: '#fff' },
+  languageToggle: { flexDirection: 'row', gap: 8 },
+  langOption: {
+    flex: 1,
+    borderWidth: 0.5,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  langOptionActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  langOptionText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  langOptionTextActive: { color: '#fff' },
 });
 
 export default SettingsScreen;

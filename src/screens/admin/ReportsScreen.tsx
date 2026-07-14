@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable react-native/no-inline-styles */
 // src/screens/admin/ReportsScreen.tsx
 // SmartPOS - Reports Screen
@@ -33,6 +34,7 @@ import {
   ProductWithCategory,
   TransactionWithItems,
 } from '../../types';
+import { useTranslation } from '../../i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,7 +98,11 @@ const parseDateInput = (dateString: string): Date => {
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 };
 
-const addDate = (date: Date, field: 'day' | 'month' | 'year', value: number) => {
+const addDate = (
+  date: Date,
+  field: 'day' | 'month' | 'year',
+  value: number,
+) => {
   const next = new Date(date);
   if (field === 'day') next.setDate(next.getDate() + value);
   if (field === 'month') next.setMonth(next.getMonth() + value);
@@ -107,6 +113,7 @@ const addDate = (date: Date, field: 'day' | 'month' | 'year', value: number) => 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const ReportsScreen: React.FC<Props> = ({ navigation }) => {
+  const { t } = useTranslation();
   const today = new Date();
   const weekAgo = new Date();
   weekAgo.setDate(today.getDate() - 7);
@@ -117,8 +124,9 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [displayCurrency, setDisplayCurrency] =
     useState<DisplayCurrency>('primary');
-  const [editingDateField, setEditingDateField] =
-    useState<'start' | 'end' | null>(null);
+  const [editingDateField, setEditingDateField] = useState<
+    'start' | 'end' | null
+  >(null);
   const [pickerDate, setPickerDate] = useState(new Date());
 
   const [transactions, setTransactions] = useState<TransactionWithItems[]>([]);
@@ -131,7 +139,9 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
   >([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [productSearch, setProductSearch] = useState('');
-  const [productResults, setProductResults] = useState<ProductWithCategory[]>([]);
+  const [productResults, setProductResults] = useState<ProductWithCategory[]>(
+    [],
+  );
   const [selectedProduct, setSelectedProduct] =
     useState<ProductWithCategory | null>(null);
   const [productSnapshot, setProductSnapshot] =
@@ -222,11 +232,11 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleGenerate = async () => {
     if (!startDate || !endDate) {
-      Alert.alert('Validation', 'Please choose both start and end dates.');
+      Alert.alert(t('validationRequired'), t('validationChooseBothDates'));
       return;
     }
     if (parseDateInput(startDate) > parseDateInput(endDate)) {
-      Alert.alert('Validation', 'Start date cannot be after end date.');
+      Alert.alert(t('validationRequired'), t('validationStartBeforeEnd'));
       return;
     }
     setLoading(true);
@@ -245,12 +255,11 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
       }
     } catch (e) {
       console.error('Report generation error:', e);
-      Alert.alert('Error', 'Could not generate report.');
+      Alert.alert(t('error'), t('somethingWentWrong'));
     } finally {
       setLoading(false);
     }
   };
-
 
   // ─── Derive summary / category / top-products from raw transactions,
   //     converting each transaction with ITS OWN rate snapshot (FR-CUR-06) ──
@@ -287,8 +296,7 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
     );
     const total_units_sold = transactions.reduce(
       (sum, t) =>
-        sum +
-        t.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+        sum + t.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
       0,
     );
     return {
@@ -363,7 +371,7 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backBtn}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.topbarTitle}>Reports</Text>
+        <Text style={styles.topbarTitle}>{t('reports')}</Text>
       </View>
 
       <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -375,7 +383,9 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalTitle}>
-                Select {editingDateField === 'start' ? 'start' : 'end'} date
+                {editingDateField === 'start'
+                  ? t('selectStartDate')
+                  : t('selectEndDate')}
               </Text>
               <View style={styles.datePickerRow}>
                 <TouchableOpacity
@@ -400,7 +410,9 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
               <View style={styles.datePickerRow}>
                 <TouchableOpacity
                   style={styles.datePickerButton}
-                  onPress={() => setPickerDate(addDate(pickerDate, 'month', -1))}
+                  onPress={() =>
+                    setPickerDate(addDate(pickerDate, 'month', -1))
+                  }
                 >
                   <Text style={styles.datePickerButtonText}>-</Text>
                 </TouchableOpacity>
@@ -442,14 +454,19 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
                   style={styles.modalActionBtn}
                   onPress={() => setEditingDateField(null)}
                 >
-                  <Text style={styles.modalActionText}>Cancel</Text>
+                  <Text style={styles.modalActionText}>{t('cancelText')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalActionBtn, styles.modalActionPrimary]}
                   onPress={confirmDatePicker}
                 >
-                  <Text style={[styles.modalActionText, styles.modalActionPrimaryText]}>
-                    Set date
+                  <Text
+                    style={[
+                      styles.modalActionText,
+                      styles.modalActionPrimaryText,
+                    ]}
+                  >
+                    {t('setDate')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -459,30 +476,30 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* Date range (FR-RPT-01) */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Date range</Text>
+          <Text style={styles.cardTitle}>{t('dateRange')}</Text>
           <View style={styles.rangeButtonsRow}>
             <TouchableOpacity
               style={styles.rangeButton}
               onPress={() => setPresetRange('day')}
             >
-              <Text style={styles.rangeButtonText}>Day</Text>
+              <Text style={styles.rangeButtonText}>{t('day')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.rangeButton}
               onPress={() => setPresetRange('week')}
             >
-              <Text style={styles.rangeButtonText}>Week</Text>
+              <Text style={styles.rangeButtonText}>{t('week')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.rangeButton}
               onPress={() => setPresetRange('month')}
             >
-              <Text style={styles.rangeButtonText}>Month</Text>
+              <Text style={styles.rangeButtonText}>{t('month')}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.row2}>
-            <View style={[styles.field, { flex: 1 }]}> 
-              <Text style={styles.label}>Start date</Text>
+            <View style={[styles.field, { flex: 1 }]}>
+              <Text style={styles.label}>{t('selectStartDate')}</Text>
               <TouchableOpacity
                 style={styles.dateField}
                 onPress={() => openDatePicker('start')}
@@ -490,8 +507,8 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.dateFieldText}>{startDate}</Text>
               </TouchableOpacity>
             </View>
-            <View style={[styles.field, { flex: 1 }]}> 
-              <Text style={styles.label}>End date</Text>
+            <View style={[styles.field, { flex: 1 }]}>
+              <Text style={styles.label}>{t('selectEndDate')}</Text>
               <TouchableOpacity
                 style={styles.dateField}
                 onPress={() => openDatePicker('end')}
@@ -508,18 +525,18 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
             {loading ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.genBtnText}>📊 Generate report</Text>
+              <Text style={styles.genBtnText}>{t('generateReport')}</Text>
             )}
           </TouchableOpacity>
         </View>
- 
+
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Inventory snapshot</Text>
-          <Text style={styles.label}>Search product</Text>
+          <Text style={styles.cardTitle}>{t('inventorySnapshot')}</Text>
+          <Text style={styles.label}>{t('searchProduct')}</Text>
           <TextInput
             value={productSearch}
             onChangeText={handleProductSearchChange}
-            placeholder="Start typing product name..."
+            placeholder={t('startTypingProductName')}
             placeholderTextColor={COLORS.textMuted}
             style={styles.input}
             autoCorrect={false}
@@ -545,24 +562,27 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
             <View style={styles.snapshotCard}>
               <Text style={styles.snapshotTitle}>{selectedProduct.name}</Text>
               <Text style={styles.snapshotLine}>
-                Beginning quantity: {productSnapshot.beginning_total}
+                {t('beginningQuantity', {
+                  qty: productSnapshot.beginning_total,
+                })}
               </Text>
               <Text style={styles.snapshotLine}>
-                Current quantity: {productSnapshot.current_total}
+                {t('currentQuantity', { qty: productSnapshot.current_total })}
               </Text>
               <Text style={styles.snapshotLine}>
-                Change:{' '}
-                {productSnapshot.change_total >= 0 ? '+' : ''}
+                {t('changeQuantity', {
+                  diff: productSnapshot.change_total >= 0 ? '+' : '',
+                })}
                 {productSnapshot.change_total}
               </Text>
             </View>
           )}
         </View>
- 
+
         {/* Currency display toggle — client-requested addition */}
         {hasGenerated && canShowSecondary && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Display currency</Text>
+            <Text style={styles.cardTitle}>{t('displayCurrency')}</Text>
             <View style={styles.currencyToggle}>
               <TouchableOpacity
                 style={[
@@ -600,10 +620,7 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
                 </Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.currencyNote}>
-              Each sale is converted using the exchange rate active at the time
-              of that sale.
-            </Text>
+            <Text style={styles.currencyNote}>{t('currencyNote')}</Text>
           </View>
         )}
 
@@ -611,45 +628,43 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
           <>
             {summary.total_transactions === 0 ? (
               <View style={styles.card}>
-                <Text style={styles.emptyText}>
-                  No sales found for this period.
-                </Text>
+                <Text style={styles.emptyText}>{t('noSalesFound')}</Text>
               </View>
             ) : (
               <>
                 {/* Summary KPIs (FR-RPT-02) */}
                 <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Summary</Text>
+                  <Text style={styles.cardTitle}>{t('summary')}</Text>
                   <View style={styles.kpiGrid}>
                     <View style={styles.kpi}>
-                      <Text style={styles.kpiLabel}>Total revenue</Text>
+                      <Text style={styles.kpiLabel}>{t('totalRevenue')}</Text>
                       <Text style={styles.kpiValue}>
                         {symbol}
                         {summary.total_revenue.toFixed(2)}
                       </Text>
                     </View>
                     <View style={styles.kpi}>
-                      <Text style={styles.kpiLabel}>Transactions</Text>
+                      <Text style={styles.kpiLabel}>{t('transactions')}</Text>
                       <Text style={styles.kpiValue}>
                         {summary.total_transactions}
                       </Text>
                     </View>
                     <View style={styles.kpi}>
-                      <Text style={styles.kpiLabel}>Avg. transaction</Text>
+                      <Text style={styles.kpiLabel}>{t('avgTransaction')}</Text>
                       <Text style={styles.kpiValue}>
                         {symbol}
                         {summary.avg_transaction.toFixed(2)}
                       </Text>
                     </View>
                     <View style={styles.kpi}>
-                      <Text style={styles.kpiLabel}>Total discount</Text>
+                      <Text style={styles.kpiLabel}>{t('totalDiscount')}</Text>
                       <Text style={styles.kpiValue}>
                         {symbol}
                         {summary.total_discount.toFixed(2)}
                       </Text>
                     </View>
                     <View style={styles.kpi}>
-                      <Text style={styles.kpiLabel}>Units sold</Text>
+                      <Text style={styles.kpiLabel}>{t('unitsSold')}</Text>
                       <Text style={styles.kpiValue}>
                         {summary.total_units_sold}
                       </Text>
@@ -659,9 +674,11 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
 
                 {/* Sales by category (FR-RPT-02) */}
                 <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Sales by category</Text>
+                  <Text style={styles.cardTitle}>{t('salesByCategory')}</Text>
                   {categorySales.length === 0 ? (
-                    <Text style={styles.emptyTextSmall}>No category data</Text>
+                    <Text style={styles.emptyTextSmall}>
+                      {t('noCategoryData')}
+                    </Text>
                   ) : (
                     categorySales.map((cat, i) => (
                       <View key={cat.category_name} style={styles.catRow}>
@@ -700,16 +717,16 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
 
                 {/* Top products (FR-RPT-02) */}
                 <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Top products</Text>
+                  <Text style={styles.cardTitle}>{t('topProducts')}</Text>
                   <View style={styles.tblHeader}>
                     <Text style={[styles.tblHeaderText, { flex: 1 }]}>
-                      Product
+                      {t('productHeader')}
                     </Text>
                     <Text style={[styles.tblHeaderText, styles.colQty]}>
-                      Qty
+                      {t('qtyHeader')}
                     </Text>
                     <Text style={[styles.tblHeaderText, styles.colRev]}>
-                      Revenue
+                      {t('revenueHeader')}
                     </Text>
                   </View>
                   {topProducts.map(p => (
@@ -727,7 +744,6 @@ const ReportsScreen: React.FC<Props> = ({ navigation }) => {
                     </View>
                   ))}
                 </View>
-
               </>
             )}
           </>
@@ -826,7 +842,11 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: '#E0E0E0',
   },
-  rangeButtonText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '500' },
+  rangeButtonText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
   dateField: {
     backgroundColor: '#F3F4F6',
     borderWidth: 0.5,

@@ -123,6 +123,7 @@ export interface AppSettings {
   receipt_footer: string;
   receipt_show_qr: boolean;
   admin_pin_hash: string;
+  language: 'en' | 'ar';
 }
 
 // ─── Cart (in-memory only, not stored in DB) ──────────────────────────────────
