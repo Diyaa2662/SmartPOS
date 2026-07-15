@@ -183,8 +183,11 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
       <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
         <View style={styles.topbar}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backBtn}>‹</Text>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backBtnText}>‹</Text>
           </TouchableOpacity>
           <Text style={styles.topbarTitle}>{t('receiptPreview')}</Text>
         </View>
@@ -209,8 +212,8 @@ const ReceiptPreviewScreen: React.FC<Props> = ({ navigation, route }) => {
 
       {/* Top Bar */}
       <View style={styles.topbar}>
-        <TouchableOpacity onPress={handleBackPress}>
-          <Text style={styles.backBtn}>‹</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={handleBackPress}>
+          <Text style={styles.backBtnText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.topbarTitle}>{t('receiptPreview')}</Text>
       </View>
@@ -460,7 +463,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  backBtn: { color: '#fff', fontSize: 28, lineHeight: 32 },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backBtnText: {
+    color: '#fff',
+    fontSize: 28,
+    lineHeight: 32,
+    marginTop: -2,
+  },
   topbarTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1, padding: 12 },

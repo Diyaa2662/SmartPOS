@@ -1,7 +1,13 @@
 // src/i18n/index.tsx
 // SmartPOS - Localization provider and hook
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { I18nManager } from 'react-native';
 import { getAllSettings, saveAllSettings } from '../database/settingsDAO';
 import { translations, Language } from './translations';
@@ -45,7 +51,9 @@ export const TranslationProvider: React.FC<React.PropsWithChildren<{}>> = ({
     const loadLanguage = async () => {
       try {
         const settings: AppSettings = await getAllSettings();
-        const savedLanguage = (settings as any).language as Language | undefined;
+        const savedLanguage = (settings as any).language as
+          | Language
+          | undefined;
         if (savedLanguage === 'ar' || savedLanguage === 'en') {
           setLanguageState(savedLanguage);
         }
@@ -78,7 +86,8 @@ export const TranslationProvider: React.FC<React.PropsWithChildren<{}>> = ({
 
   const t = useMemo(
     () => (key: string, params?: Record<string, string | number>) => {
-      const template = translations[language][key] ?? translations.en[key] ?? key;
+      const template =
+        translations[language][key] ?? translations.en[key] ?? key;
       return interpolate(template, params);
     },
     [language],

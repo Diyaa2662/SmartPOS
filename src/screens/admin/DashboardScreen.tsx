@@ -139,10 +139,13 @@ const DashboardScreen: React.FC<Props> = ({ navigation, onLogout }) => {
           </Text>
         </View>
         <View style={styles.topbarIcons}>
-          <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+          <TouchableOpacity
+            style={styles.topbarIconBtn}
+            onPress={() => navigation.navigate('Settings')}
+          >
             <Text style={styles.topbarIcon}>⚙️</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onLogout}>
+          <TouchableOpacity style={styles.topbarIconBtn} onPress={onLogout}>
             <Text style={styles.topbarIcon}>🚪</Text>
           </TouchableOpacity>
         </View>
@@ -311,7 +314,15 @@ const styles = StyleSheet.create({
   },
   topbarTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   topbarSub: { color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 2 },
-  topbarIcons: { flexDirection: 'row', gap: 14 },
+  topbarIcons: { flexDirection: 'row', gap: 6 },
+  topbarIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   topbarIcon: { fontSize: 18 },
   rateBar: {
     backgroundColor: COLORS.rateBg,

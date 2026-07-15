@@ -260,7 +260,7 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
       <View style={styles.topbar}>
         <Text style={styles.topbarTitle}>{t('sales')}</Text>
         {onLogout ? (
-          <TouchableOpacity onPress={onLogout}>
+          <TouchableOpacity style={styles.topbarIconBtn} onPress={onLogout}>
             <Text style={styles.topbarIcon}>🚪</Text>
           </TouchableOpacity>
         ) : null}
@@ -306,7 +306,7 @@ const SalesScreen: React.FC<Props> = ({ navigation, route, onLogout }) => {
               }
             }}
           >
-            <Text style={styles.scanBtnIcon}>⌗</Text>
+            <Text style={styles.scanBtnIcon}>📷</Text>
           </TouchableOpacity>
         </View>
 
@@ -479,6 +479,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   topbarTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
+  topbarIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   topbarIcon: { fontSize: 18 },
   rateBar: {
     backgroundColor: '#E8F0FB',

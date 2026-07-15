@@ -4,9 +4,13 @@
 // NOTE: All functions are async because op-sqlite's execute() returns a Promise
 // NOTE: result.rows is a plain array (Record<string, Scalar>[]) — use [i], not .item(i)
 
-import {getDatabase} from './database';
-import {PurchaseOrder, PurchaseOrderItem, PurchaseOrderWithItems} from '../types';
-import {incrementStock} from './productDAO';
+import { getDatabase } from './database';
+import {
+  PurchaseOrder,
+  PurchaseOrderItem,
+  PurchaseOrderWithItems,
+} from '../types';
+import { incrementStock } from './productDAO';
 
 // ─── Generate next PO number (FR-PO-04) ──────────────────────────────────────
 
@@ -15,14 +19,16 @@ const generatePoNumber = async (): Promise<string> => {
   const result = await db.execute(
     'SELECT COUNT(*) as count FROM purchase_orders;',
   );
-  const count = (result.rows?.[0] as unknown as {count: number})?.count ?? 0;
+  const count = (result.rows?.[0] as unknown as { count: number })?.count ?? 0;
   const next = count + 1;
   return `PO-${String(next).padStart(6, '0')}`;
 };
 
 // ─── Get all purchase orders (for history list — FR-PO-05) ───────────────────
 
-export const getAllPurchaseOrders = async (): Promise<(PurchaseOrder & {item_count: number})[]> => {
+export const getAllPurchaseOrders = async (): Promise<
+  (PurchaseOrder & { item_count: number })[]
+> => {
   const db = getDatabase();
   const result = await db.execute(
     `SELECT po.*, COUNT(poi.id) as item_count
@@ -31,17 +37,21 @@ export const getAllPurchaseOrders = async (): Promise<(PurchaseOrder & {item_cou
      GROUP BY po.id
      ORDER BY po.created_at DESC;`,
   );
-  const orders: (PurchaseOrder & {item_count: number})[] = [];
+  const orders: (PurchaseOrder & { item_count: number })[] = [];
   if (!result.rows) return orders;
   for (let i = 0; i < result.rows.length; i++) {
-    orders.push(result.rows[i] as unknown as PurchaseOrder & {item_count: number});
+    orders.push(
+      result.rows[i] as unknown as PurchaseOrder & { item_count: number },
+    );
   }
   return orders;
 };
 
 // ─── Get purchase order by ID with items (for detail view — FR-PO-06) ─────────
 
-export const getPurchaseOrderById = async (id: number): Promise<PurchaseOrderWithItems | null> => {
+export const getPurchaseOrderById = async (
+  id: number,
+): Promise<PurchaseOrderWithItems | null> => {
   const db = getDatabase();
 
   const poResult = await db.execute(

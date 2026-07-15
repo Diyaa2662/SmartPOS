@@ -2,8 +2,8 @@
 // SmartPOS - Database Initialization
 // NOTE: @op-engineering/op-sqlite execute() returns a Promise — all DB calls are async
 
-import {open, DB} from '@op-engineering/op-sqlite';
-import {ALL_TABLES} from './schema';
+import { open, DB } from '@op-engineering/op-sqlite';
+import { ALL_TABLES } from './schema';
 
 const DB_NAME = 'smartpos.db';
 
@@ -12,7 +12,7 @@ let initPromise: Promise<void> | null = null;
 
 export const getDatabase = (): DB => {
   if (!db) {
-    db = open({name: DB_NAME});
+    db = open({ name: DB_NAME });
   }
   return db;
 };
@@ -51,20 +51,20 @@ const initializeDatabase = async (): Promise<void> => {
 const insertDefaultSettings = async (): Promise<void> => {
   const database = getDatabase();
 
-  const defaults: {key: string; value: string}[] = [
-    {key: 'store_name', value: 'My Store'},
-    {key: 'primary_currency_code', value: 'USD'},
-    {key: 'primary_currency_symbol', value: '$'},
-    {key: 'secondary_currency_code', value: 'IQD'},
-    {key: 'secondary_currency_symbol', value: 'IQD'},
-    {key: 'exchange_rate', value: '1'},
-    {key: 'exchange_rate_updated_at', value: new Date().toISOString()},
-    {key: 'receipt_footer', value: 'Thank you for shopping!'},
-    {key: 'receipt_show_qr', value: 'false'},
-    {key: 'admin_pin_hash', value: ''},
+  const defaults: { key: string; value: string }[] = [
+    { key: 'store_name', value: 'My Store' },
+    { key: 'primary_currency_code', value: 'USD' },
+    { key: 'primary_currency_symbol', value: '$' },
+    { key: 'secondary_currency_code', value: 'IQD' },
+    { key: 'secondary_currency_symbol', value: 'IQD' },
+    { key: 'exchange_rate', value: '1' },
+    { key: 'exchange_rate_updated_at', value: new Date().toISOString() },
+    { key: 'receipt_footer', value: 'Thank you for shopping!' },
+    { key: 'receipt_show_qr', value: 'false' },
+    { key: 'admin_pin_hash', value: '' },
   ];
 
-  for (const {key, value} of defaults) {
+  for (const { key, value } of defaults) {
     // INSERT OR IGNORE — only inserts if key doesn't exist yet
     await database.execute(
       'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?);',

@@ -50,8 +50,8 @@ export interface Transaction {
   grand_total: number;
   amount_tendered: number;
   change_due: number;
-  tendered_primary: number;    // amount paid in primary currency
-  tendered_secondary: number;  // amount paid in secondary currency
+  tendered_primary: number; // amount paid in primary currency
+  tendered_secondary: number; // amount paid in secondary currency
   primary_currency_code: string;
   secondary_currency_code: string | null;
   exchange_rate_snapshot: number | null; // FR-CUR-05
@@ -70,18 +70,18 @@ export interface TransactionItem {
   id: number;
   transaction_id: number;
   product_id: number;
-  product_name: string;   // snapshot at sale time
-  unit_price: number;     // primary currency
+  product_name: string; // snapshot at sale time
+  unit_price: number; // primary currency
   discount_price: number | null;
   quantity: number;
-  line_total: number;     // primary currency
+  line_total: number; // primary currency
 }
 
 // ─── Purchase Order ───────────────────────────────────────────────────────────
 
 export interface PurchaseOrder {
   id: number;
-  po_number: string;      // e.g. 'PO-000042'
+  po_number: string; // e.g. 'PO-000042'
   supplier_note: string | null;
   total_cost: number;
   created_at: string;
@@ -98,10 +98,10 @@ export interface PurchaseOrderItem {
   id: number;
   purchase_order_id: number;
   product_id: number;
-  product_name: string;   // snapshot at PO time
+  product_name: string; // snapshot at PO time
   quantity: number;
   purchase_price: number;
-  line_cost: number;      // quantity * purchase_price
+  line_cost: number; // quantity * purchase_price
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
