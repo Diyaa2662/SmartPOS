@@ -205,7 +205,7 @@ export const printReceipt = async (
   );
 
   // Feed paper at end
-  await PrinterModule.paperOut(180);
+  await PrinterModule.paperOut(220);
 };
 
 // ─── Print product barcode label (FR-PRD-07, FR-PRT-04) ──────────────────────
@@ -219,5 +219,5 @@ export const printProductLabel = async (
   }
   await PrinterModule.printText(productName, CENTER_BOLD);
   await PrinterModule.printBarcode(barcode, 360, 80);
-  await PrinterModule.paperOut(160);
+  await PrinterModule.paperOut(220);
 };

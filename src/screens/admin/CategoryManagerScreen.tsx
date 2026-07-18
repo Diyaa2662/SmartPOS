@@ -333,7 +333,10 @@ const TreeRow: React.FC<TreeRowProps> = ({
           <Text style={styles.deleteIcon}>🗑️</Text>
         </TouchableOpacity>
         {hasChildren && (
-          <TouchableOpacity onPress={() => onToggleExpand(category.id)}>
+          <TouchableOpacity
+            style={styles.chevronBtn}
+            onPress={() => onToggleExpand(category.id)}
+          >
             <Text style={styles.chevron}>{isExpanded ? '▾' : '▸'}</Text>
           </TouchableOpacity>
         )}
@@ -575,7 +578,17 @@ const styles = StyleSheet.create({
   },
   childName: { flex: 1, fontSize: 12, color: COLORS.textSecondary },
   itemCount: { fontSize: 10, color: COLORS.textMuted },
-  chevron: { fontSize: 14, color: COLORS.textMuted, marginLeft: 4 },
+  chevronBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chevron: {
+    fontSize: 20,
+    color: COLORS.textMuted,
+  },
   actionBtn: {
     width: 28,
     height: 28,

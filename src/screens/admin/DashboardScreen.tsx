@@ -286,13 +286,6 @@ const DashboardScreen: React.FC<Props> = ({ navigation, onLogout }) => {
               <Text style={styles.quickIcon}>📊</Text>
               <Text style={styles.quickLabel}>{t('reports')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.quickBtn}
-              onPress={() => navigation.navigate('Settings')}
-            >
-              <Text style={styles.quickIcon}>⚙️</Text>
-              <Text style={styles.quickLabel}>{t('settings')}</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>

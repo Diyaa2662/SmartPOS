@@ -3,7 +3,7 @@
 // SmartPOS - Add / Edit Product Screen
 // Based on SRS Section 3.2 (FR-PRD) and Section 8
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -74,6 +74,9 @@ const AddEditProductScreen: React.FC<Props> = ({ navigation, route }) => {
   const [existingStockQty, setExistingStockQty] = useState(0);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
+  // Ref for barcode input
+  const barcodeInputRef = useRef<TextInput>(null);
+
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -123,6 +126,12 @@ const AddEditProductScreen: React.FC<Props> = ({ navigation, route }) => {
     } catch (e) {
       Alert.alert(t('error'), t('somethingWentWrong'));
     }
+  };
+
+  // ─── Scanner handler ──────────────────────────────────────────────────────
+  // Same behavior as Sales screen - just focuses the input field
+  const handleScanBarcode = () => {
+    barcodeInputRef.current?.focus();
   };
 
   const handleSave = async () => {
@@ -350,20 +359,29 @@ const AddEditProductScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={styles.barcodeRow}>
             <View style={[styles.field, { flex: 1 }]}>
               <Text style={styles.label}>{t('barcode')}</Text>
-              <TextInput
-                style={styles.input}
-                value={barcode}
-                onChangeText={setBarcode}
-                placeholder={t('enterManuallyOrGenerate')}
-                placeholderTextColor={COLORS.textMuted}
-              />
+              <View style={styles.barcodeInputRow}>
+                <TextInput
+                  ref={barcodeInputRef}
+                  style={[styles.input, styles.barcodeInput]}
+                  value={barcode}
+                  onChangeText={setBarcode}
+                  placeholder={t('enterManuallyOrGenerate')}
+                  placeholderTextColor={COLORS.textMuted}
+                />
+                <TouchableOpacity
+                  style={styles.scanBtn}
+                  onPress={handleScanBarcode}
+                >
+                  <Text style={styles.scanBtnText}>📷</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             {/* Generate barcode (FR-PRD-05) */}
             <TouchableOpacity
               style={styles.generateBtn}
               onPress={handleGenerateBarcode}
             >
-              <Text style={styles.generateBtnText}>{t('generate')}</Text>
+              <Text style={styles.generateBtnText}>🔄</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -481,15 +499,48 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.primary,
   },
-  barcodeRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-end' },
+  barcodeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-end',
+  },
+  barcodeInputRow: {
+    flexDirection: 'row',
+    flex: 1,
+    gap: 6,
+    alignItems: 'center',
+  },
+  barcodeInput: {
+    flex: 1,
+  },
+  scanBtn: {
+    backgroundColor: COLORS.pillBg,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 38,
+  },
+  scanBtnText: {
+    fontSize: 16,
+    color: COLORS.primary,
+  },
   generateBtn: {
     backgroundColor: COLORS.pillBg,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 38,
     marginBottom: 0,
   },
-  generateBtnText: { fontSize: 12, color: COLORS.primary, fontWeight: '500' },
+  generateBtnText: {
+    fontSize: 16,
+    color: COLORS.primary,
+    fontWeight: '500',
+  },
   actionRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
   cancelBtn: {
     flex: 1,

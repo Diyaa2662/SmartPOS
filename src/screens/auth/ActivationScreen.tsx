@@ -61,24 +61,6 @@ const ActivationScreen: React.FC<Props> = ({ onActivated }) => {
     loadDeviceId();
   }, [t]);
 
-  const handleCopyDeviceId = () => {
-    if (deviceId) {
-      Alert.alert('Device ID', `📱 ${deviceId}`, [
-        {
-          text: 'Copy',
-          onPress: () => {
-            Alert.alert(
-              'Copy Device ID',
-              `Please copy this ID manually:\n\n${deviceId}`,
-              [{ text: 'OK' }],
-            );
-          },
-        },
-        { text: 'OK' },
-      ]);
-    }
-  };
-
   const handleActivate = async () => {
     if (!activationCode.trim()) {
       Alert.alert(t('validationRequired'), 'Please enter an activation code.');
@@ -147,12 +129,6 @@ const ActivationScreen: React.FC<Props> = ({ onActivated }) => {
             <Text style={styles.deviceIdText} selectable>
               {deviceId}
             </Text>
-            <TouchableOpacity
-              style={styles.copyBtn}
-              onPress={handleCopyDeviceId}
-            >
-              <Text style={styles.copyBtnText}>📋 Copy</Text>
-            </TouchableOpacity>
           </View>
 
           <View style={styles.divider} />
@@ -260,25 +236,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   deviceIdText: {
     fontSize: 12,
     color: COLORS.text,
     fontFamily: 'monospace',
-    flex: 1,
-  },
-  copyBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  copyBtnText: {
-    fontSize: 11,
-    color: COLORS.white,
-    fontWeight: '500',
+    textAlign: 'center',
   },
   divider: {
     height: 0.5,
