@@ -111,6 +111,9 @@ export const CREATE_SETTINGS_TABLE = `
   - admin_pin_hash
   - receipt_footer
   - receipt_show_qr
+  - language                    'en' | 'ar'
+  - activation_status           'activated' | '' (empty = not activated)
+  - activated_device_id         Device ID that was used for activation
 */
 
 // All table creation statements in order (respecting foreign key dependencies)

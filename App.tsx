@@ -1,66 +1,75 @@
 // App.tsx
-// SmartPOS - Application Entry Point
+// SmartPOS - Main Application Entry Point
 
-import React, {useEffect, useState} from 'react';
-import {View, Text, ActivityIndicator, StyleSheet} from 'react-native';
-import AppNavigator from './src/navigation/AppNavigator';
+import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { TranslationProvider } from './src/i18n';
-import {initDatabase} from './src/database/database';
+import AppNavigator from './src/navigation/AppNavigator';
+import { initDatabase } from './src/database/database';
+import { isDeviceActivated } from './src/utils/licenseService';
+import ActivationScreen from './src/screens/auth/ActivationScreen';
 
-const App = () => {
+const App: React.FC = () => {
   const [isReady, setIsReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showActivation, setShowActivation] = useState(false);
 
   useEffect(() => {
-    initDatabase()
-      .then(() => setIsReady(true))
-      .catch(e => {
-        console.error('Failed to initialize database:', e);
-        setError('Failed to initialize database. Please restart the app.');
-      });
+    const initializeApp = async () => {
+      try {
+        // 1. Initialize database
+        await initDatabase();
+
+        // 2. Check activation status
+        const activated = await isDeviceActivated();
+
+        // 3. If not activated, show activation screen
+        if (!activated) {
+          setShowActivation(true);
+        } else {
+          setShowActivation(false);
+        }
+      } catch (error) {
+        console.error('App initialization error:', error);
+        // In case of error, default to showing activation screen
+        setShowActivation(true);
+      } finally {
+        setIsReady(true);
+      }
+    };
+
+    initializeApp();
   }, []);
 
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
+  const handleActivated = () => {
+    // User successfully activated the device
+    setShowActivation(false);
+  };
 
   if (!isReady) {
     return (
-      <View style={styles.center}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#1A56A0" />
-        <Text style={styles.loadingText}>Starting SmartPOS...</Text>
       </View>
     );
   }
 
   return (
     <TranslationProvider>
-      <AppNavigator />
+      {showActivation ? (
+        <ActivationScreen onActivated={handleActivated} />
+      ) : (
+        <AppNavigator />
+      )}
     </TranslationProvider>
   );
 };
 
 const styles = StyleSheet.create({
-  center: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F7F8FA',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 13,
-    color: '#666',
-  },
-  errorText: {
-    fontSize: 13,
-    color: '#E24B4A',
-    textAlign: 'center',
-    paddingHorizontal: 24,
+    backgroundColor: '#FFFFFF',
   },
 });
 
