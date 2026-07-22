@@ -143,6 +143,8 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // ===== Categories =====
     addNewCategory: '+ Add new',
+    editCategory: 'Edit category',
+    categoryName: 'Category name',
     noCategoriesYet: 'No categories yet. Add one!',
     addNewCategoryTitle: 'Add new category',
     color: 'Color',
@@ -156,8 +158,10 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // ===== Purchase Orders =====
     newPO: '+ New PO',
+    POItems: 'items',
     noPurchaseOrdersYet: 'No purchase orders yet',
-    itemsReceived: '{count} items received',
+    itemsReceived: 'items received',
+    savePurchaseOrder: '💾 Save purchase order',
     totalCost: 'Total cost',
     poNumber: 'PO number',
     date: 'Date',
@@ -247,7 +251,7 @@ export const translations: Record<Language, Record<string, string>> = {
   },
   ar: {
     // ===== General =====
-    appTitle: 'سمارت بوز',
+    appTitle: 'Smart POS',
     pointOfSaleSystem: 'نظام نقاط البيع',
     admin: 'المسؤول',
     cashier: 'الكاشير',
@@ -257,7 +261,7 @@ export const translations: Record<Language, Record<string, string>> = {
     pleaseTryAgain: 'الرجاء المحاولة مرة أخرى.',
     error: 'خطأ',
     somethingWentWrong: 'حدث خطأ ما. الرجاء المحاولة مرة أخرى.',
-    version: 'سمارت بوز v1.0 • POS-T8-3',
+    version: 'Smart POS v1.0 • POS-T8-3',
 
     // ===== Navigation =====
     dashboard: 'لوحة التحكم',
@@ -382,6 +386,8 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // ===== Categories =====
     addNewCategory: '+ إضافة جديد',
+    editCategory: 'تعديل الفئة',
+    categoryName: 'اسم الفئة',
     noCategoriesYet: 'لا توجد فئات بعد. أضف واحدة!',
     addNewCategoryTitle: 'إضافة فئة جديدة',
     color: 'اللون',
@@ -395,8 +401,10 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // ===== Purchase Orders =====
     newPO: '+ أمر شراء جديد',
+    POItems: 'العناصر',
     noPurchaseOrdersYet: 'لا توجد أوامر شراء بعد',
-    itemsReceived: '{count} عناصر مستلمة',
+    itemsReceived: 'عناصر مستلمة',
+    savePurchaseOrder: '💾 حفظ أمر الشراء',
     totalCost: 'التكلفة الإجمالية',
     poNumber: 'رقم الأمر',
     date: 'التاريخ',

@@ -134,7 +134,7 @@ const PurchaseOrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 {t('itemsReceived', { count: po.items.length })}
               </Text>
               <Text style={styles.infoValue}>
-                {po.items.length} {t('items')}
+                {po.items.length} {t('POItems')}
               </Text>
             </View>
           </View>
